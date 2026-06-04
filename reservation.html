@@ -214,7 +214,7 @@ const SERVICES = [
   {id:'afternoon',name:'宅邸午茶',desc:'純享用餐點，不受任何執事打擾（現場可追加預約）',price:0,dur:30,canDesig:false},
   {id:'call30',name:'優雅呼喚',desc:'享用餐點，與執事一同談心陪伴（30分鐘）',price:60000,dur:30,extra:40000,canDesig:true},
   {id:'private',name:'專屬時光',desc:'主題式包廂空間，您的私人隱密空間',price:40000,dur:30,canDesig:false},
-  {id:'photo',name:'衷心之影',desc:'指定攝影師拍立得一張，化作永恆的珍貴時刻',price:0,dur:15,canDesig:false,needPhoto:true},
+  {id:'photo',name:'衷心之影',desc:'指定攝影師拍立得一張，化作永恆的珍貴時刻',price:0,dur:15,canDesig:true,extra:40000,needPhoto:true},
 ];
 
 const STEPS_BASE = [
@@ -226,6 +226,7 @@ const STEPS_BASE = [
   {id:'info',label:'基本資料'},
   {id:'confirm',label:'確認送出'},
 ];
+// 有衷心之影（不管有沒有優雅呼喚）：執事 → 攝影師
 const STEPS_WITH_PHOTO = [
   {id:'agree',label:'宅邸規範'},
   {id:'datetime',label:'日期時段'},
@@ -237,7 +238,9 @@ const STEPS_WITH_PHOTO = [
   {id:'confirm',label:'確認送出'},
 ];
 
-function getSteps(){ return st.services.includes('photo') ? STEPS_WITH_PHOTO : STEPS_BASE; }
+function getSteps(){
+  return st.services.includes('photo') ? STEPS_WITH_PHOTO : STEPS_BASE;
+}
 
 // ═══════════════════════════════════════════════
 //  狀態
@@ -362,7 +365,14 @@ function renderPhotographer(){
   const total=calcTotal();
   setMain(`
     <div class="stit">選擇攝影師</div>
-    <p style="font-size:11.5px;color:var(--tm);margin-bottom:1rem;letter-spacing:.04em;">✦ 請選擇為您拍攝拍立得的攝影師（必選其一）</p>
+    <div class="nbox" style="margin-bottom:1.25rem;">
+      <div style="font-size:13px;color:var(--ts);line-height:2;">
+        ✦ 拍立得每張至多三人<br>
+        ✦ 1 - 2 個工作天於官方 DC 提供照片<br>
+        ✦ 如有追加需求，詳細費用請見各攝影師網站
+      </div>
+    </div>
+    <p style="font-size:11.5px;color:var(--tm);margin-bottom:1rem;letter-spacing:.04em;">請選擇為您拍攝拍立得的攝影師（必選其一）</p>
     <div class="bcard-grid">
       ${PHOTOGRAPHERS.map(p=>{
         const available=isPhotographerAvailable(st.date, p.id, st.time);
@@ -503,9 +513,15 @@ function renderDatetime(){
 // ── Step 3: 服務 ──
 function renderService(){
   const total=calcTotal();
+  const hasPhoto=st.services.includes('photo');
   setMain(`
     <div class="stit">預約服務</div>
-    ${SERVICES.map(s=>`
+    ${SERVICES.map(s=>{
+      const isPhoto = s.id==='photo';
+      const priceDisplay = isPhoto
+        ? `<span class="am" style="font-size:.85rem;color:var(--ts);">費用另計</span><span style="font-size:10px;display:block;color:var(--tm);">前往下一步選擇</span>`
+        : `<span class="am">${s.price===0?'免費':s.price.toLocaleString()+' Gil'}</span>${s.extra?`<span style="font-size:10px;display:block;color:var(--tm);">指定+${s.extra.toLocaleString()}</span>`:''}`;
+      return `
       <div class="svc${st.services.includes(s.id)?' sel':''}" onclick="toggleSvc('${s.id}')">
         <div class="schk">${st.services.includes(s.id)?chkSvg():''}</div>
         <div class="si">
@@ -513,14 +529,18 @@ function renderService(){
           <p>${s.desc}</p>
         </div>
         <div class="sp">
-          <span class="am">${s.price===0?'免費':s.price.toLocaleString()+' Gil'}</span>
-          ${s.extra?`<span style="font-size:10px;display:block;color:var(--tm);">指定+${s.extra.toLocaleString()}</span>`:''}
+          ${priceDisplay}
           <span>${s.dur}min</span>
         </div>
-      </div>
-    `).join('')}
+      </div>`;
+    }).join('')}
     <div class="cpnl">
-      <div><div class="clbl">預計費用合計</div><div style="font-size:10px;color:var(--tm);margin-top:2px;">※ 指名費於下一步計算</div></div>
+      <div>
+        <div class="clbl">預計費用合計</div>
+        <div style="font-size:10px;color:var(--tm);margin-top:2px;">
+          ${hasPhoto?'※ 衷心之影費用於攝影師步驟確認':'※ 指名費於下一步計算'}
+        </div>
+      </div>
       <div style="text-align:right"><div class="ctot">${total.toLocaleString()}</div><div class="cunt">Gil</div></div>
     </div>
     <button class="bnxt" onclick="next()" ${st.services.length>0?'':'disabled'}>下一步　→</button>
