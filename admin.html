@@ -275,19 +275,23 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbwOrMIcW91ETRqsGN_dA_kT
 
 async function apiGet(action){
   try{
-    const res = await fetch(`${API_URL}?action=${action}`);
+    const res = await fetch(`${API_URL}?action=${action}`, {
+      method: 'GET',
+      mode: 'cors',
+    });
     return await res.json();
-  }catch(e){ return null; }
+  }catch(e){ console.error('apiGet error:', action, e); return null; }
 }
 
 async function apiPost(action, data){
   try{
     const res = await fetch(API_URL, {
-      method:'POST',
+      method: 'POST',
+      mode: 'cors',
       body: JSON.stringify({action, data}),
     });
     return await res.json();
-  }catch(e){ return null; }
+  }catch(e){ console.error('apiPost error:', action, e); return null; }
 }
 
 async function loadData(){
@@ -332,8 +336,16 @@ async function doLogin(){
   if(pw === ADMIN_PW){
     document.getElementById('login-screen').style.display='none';
     document.getElementById('main-app').style.display='grid';
-    document.getElementById('content').innerHTML='<div style="padding:3rem;text-align:center;color:var(--ts);font-size:14px;letter-spacing:.1em;">載入資料中...</div>';
-    await loadData();
+    document.getElementById('content').innerHTML='<div style="padding:3rem;text-align:center;color:var(--ts);font-size:14px;letter-spacing:.1em;">載入資料中，請稍候...<br><span style="font-size:11px;color:var(--tm);">首次連線可能需要 10-20 秒</span></div>';
+    try{
+      await Promise.race([
+        loadData(),
+        new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),30000))
+      ]);
+    }catch(e){
+      document.getElementById('content').innerHTML='<div style="padding:3rem;text-align:center;color:var(--err-c);font-size:14px;">⚠ 資料載入逾時，請重新整理頁面再試。</div>';
+      return;
+    }
     renderView('dashboard');
   } else {
     document.getElementById('login-err').textContent='密碼錯誤，請重試。';

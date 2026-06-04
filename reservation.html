@@ -262,19 +262,23 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbwOrMIcW91ETRqsGN_dA_kT
 
 async function apiGet(action){
   try{
-    const res = await fetch(`${API_URL}?action=${action}`);
+    const res = await fetch(`${API_URL}?action=${action}`, {
+      method: 'GET',
+      mode: 'cors',
+    });
     return await res.json();
-  }catch(e){ return null; }
+  }catch(e){ console.error('apiGet error:', action, e); return null; }
 }
 
 async function apiPost(action, data){
   try{
     const res = await fetch(API_URL, {
-      method:'POST',
+      method: 'POST',
+      mode: 'cors',
       body: JSON.stringify({action, data}),
     });
     return await res.json();
-  }catch(e){ return null; }
+  }catch(e){ console.error('apiPost error:', action, e); return null; }
 }
 
 async function loadData(){
