@@ -262,10 +262,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbwOrMIcW91ETRqsGN_dA_kT
 
 async function apiGet(action){
   try{
-    const res = await fetch(`${API_URL}?action=${action}`, {
-      method: 'GET',
-      mode: 'cors',
-    });
+    const res = await fetch(`${API_URL}?action=${action}`);
     return await res.json();
   }catch(e){ console.error('apiGet error:', action, e); return null; }
 }
@@ -274,7 +271,6 @@ async function apiPost(action, data){
   try{
     const res = await fetch(API_URL, {
       method: 'POST',
-      mode: 'cors',
       body: JSON.stringify({action, data}),
     });
     return await res.json();
@@ -290,7 +286,14 @@ async function loadData(){
       apiGet('getButlers'),
       apiGet('getPhotographers'),
     ]);
-    if(sched) schedule = sched;
+    if(sched && typeof sched==='object'){
+      // 確保日期 key 都是 YYYY-MM-DD 格式
+      schedule={};
+      Object.entries(sched).forEach(([k,v])=>{
+        const clean = k.length===10 ? k : new Date(k).toISOString().slice(0,10);
+        schedule[clean]=v;
+      });
+    }
     if(Array.isArray(res)) reservations = res;
     if(Array.isArray(butlers) && butlers.length>0) BUTLERS = butlers;
     if(Array.isArray(photographers) && photographers.length>0) PHOTOGRAPHERS = photographers;
