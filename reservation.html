@@ -214,7 +214,7 @@ const SERVICES = [
   {id:'afternoon',name:'宅邸午茶',desc:'純享用餐點，不受任何執事打擾（現場可追加預約）',price:0,dur:30,canDesig:false},
   {id:'call30',name:'優雅呼喚',desc:'享用餐點，與執事一同談心陪伴（30分鐘）',price:60000,dur:30,extra:40000,canDesig:true},
   {id:'private',name:'專屬時光',desc:'主題式包廂空間，您的私人隱密空間',price:40000,dur:30,canDesig:false},
-  {id:'photo',name:'衷心之影',desc:'指定攝影師拍立得一張，化作永恆的珍貴時刻',price:0,dur:15,canDesig:true,extra:40000,needPhoto:true},
+  {id:'photo',name:'衷心之影',desc:'指定攝影師拍立得一張，化作永恆的珍貴時刻',price:0,dur:15,canDesig:true,needPhoto:true},
 ];
 
 const STEPS_BASE = [
@@ -634,7 +634,7 @@ function renderButler(){
   }
 
   const desigNote = st.butler&&st.butler!=='none' ? `
-    <div class="dnote">✦ 已選擇指名執事，相關服務將加收指名費 40,000 Gil</div>` : '';
+    <div class="dnote">✦ 已選擇指名執事${st.services.includes('call30')?'，優雅呼喚服務將加收指名費 40,000 Gil':''}</div>` : '';
 
   setMain(`
     <div class="stit">指名執事</div>
