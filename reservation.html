@@ -374,7 +374,13 @@ function renderPhotographer(){
     </div>
     <p style="font-size:11.5px;color:var(--tm);margin-bottom:1rem;letter-spacing:.04em;">請選擇為您拍攝拍立得的攝影師（必選其一）</p>
     <div class="bcard-grid">
-      ${PHOTOGRAPHERS.map(p=>{
+      ${PHOTOGRAPHERS.filter(p=>{
+        // 只顯示在客人選擇時段有排班的攝影師（不管是否已滿）
+        const day=schedule[st.date];
+        if(!day?.photographerShifts) return false;
+        const shifts=(day.photographerShifts[p.id]||[]);
+        return shifts.includes(st.time);
+      }).map(p=>{
         const available=isPhotographerAvailable(st.date, p.id, st.time);
         const photoHtml=p.photo?`<img src="${escH(p.photo)}" alt="${escH(p.name)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`:'' ;
         const initialHtml=`<div class="bcard-initial" style="${p.photo?'display:none':''}">${escH(p.initial)}</div>`;
@@ -565,13 +571,32 @@ function renderButler(){
 
   let butlerHtml='';
   if(canDesig){
+    // 只顯示在客人選擇的時段有排班且未被預約的執事
+    const availableButlers = BUTLERS.filter(b=>{
+      return isButlerOnDutyAtTime(st.date, b.id, st.time);
+    });
+    const blockedButlers = BUTLERS.filter(b=>{
+      if(!isButlerOnDutyAtTime(st.date, b.id, st.time)) return false;
+      const timeStatus=getButlerTimesStatus(st.date, b.id);
+      const slotStatus=timeStatus.find(ts=>ts.time===st.time);
+      return slotStatus?.blocked;
+    });
+    // 可指名 = 有排班且未被預約；已滿 = 有排班但已被預約；未排班的直接隱藏
+    const visibleButlers = [...availableButlers, ...blockedButlers];
+
     butlerHtml=`
       <p style="font-size:11.5px;color:var(--tm);margin-bottom:1rem;letter-spacing:.04em;">✦ 僅「優雅呼喚」及「衷心之影」服務可指名執事</p>
+      ${visibleButlers.length===0?`
+        <div class="nbox" style="text-align:center;color:var(--tm);">
+          此時段目前沒有可指名的執事<br>
+          <span style="font-size:12px;">可選擇「不指定執事」由宅邸安排</span>
+        </div>
+      `:`
       <div class="bcard-grid">
-        ${onDutyButlers.map(b=>{
+        ${visibleButlers.map(b=>{
           const timeStatus=getButlerTimesStatus(st.date, b.id);
           const slotStatus=timeStatus.find(ts=>ts.time===st.time);
-          const available = slotStatus ? (!slotStatus.offDuty && !slotStatus.blocked) : false;
+          const available = slotStatus ? !slotStatus.blocked : false;
           const photoHtml = b.photo
             ? `<img src="${escH(b.photo)}" alt="${escH(b.name)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
             : '';
@@ -579,9 +604,8 @@ function renderButler(){
           const profileBtn = b.profileUrl
             ? `<a class="bcard-profile" href="${escH(b.profileUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">個人頁面 ↗</a>`
             : '';
-          let statusLabel='可指名', statusCls='av';
-          if(!slotStatus||slotStatus.offDuty){ statusLabel='未排班'; statusCls='bk'; }
-          else if(slotStatus.blocked){ statusLabel='已滿'; statusCls='bk'; }
+          const statusLabel = available ? '可指名' : '已滿';
+          const statusCls = available ? 'av' : 'bk';
           return `<div class="bcard${st.butler===b.id?' sel':''}${!available?' bkd':''}" onclick="${available?`selectButler('${b.id}')`:''}" >
             <div class="bcard-photo">${photoHtml}${initialHtml}</div>
             <div class="bcard-body">
@@ -594,7 +618,7 @@ function renderButler(){
             </div>
           </div>`;
         }).join('')}
-      </div>
+      </div>`}
       <div class="nopref${st.butler==='none'?' sel':''}" onclick="selectButler('none')">
         <div class="rrdo${st.butler==='none'?' on':''}"></div>
         不指定執事（由宅邸安排）
