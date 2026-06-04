@@ -591,19 +591,43 @@ function renderDatetime(){
 function renderService(){
   const total=calcTotal();
   const hasPhoto=st.services.includes('photo');
+  const hasCall=st.services.includes('call30');
+
+  // 檢查當天是否有攝影師排班（任一時段有攝影師就算）
+  const daySchedule=schedule[st.date];
+  const hasPhotographerToday = daySchedule?.photographerShifts &&
+    Object.values(daySchedule.photographerShifts).some(shifts=>Array.isArray(shifts)&&shifts.length>0);
+
+  // 衷心之影可用條件：有勾選優雅呼喚 且 當天有攝影師排班
+  const photoEnabled = hasCall && hasPhotographerToday;
+
   setMain(`
     <div class="stit">預約服務</div>
     ${SERVICES.map(s=>{
       const isPhoto = s.id==='photo';
+      const disabled = isPhoto && !photoEnabled;
+      const selected = st.services.includes(s.id);
+
       const priceDisplay = isPhoto
         ? `<span class="am" style="font-size:.85rem;color:var(--ts);">費用另計</span><span style="font-size:10px;display:block;color:var(--tm);">前往下一步選擇</span>`
         : `<span class="am">${s.price===0?'免費':s.price.toLocaleString()+' Gil'}</span>${s.extra?`<span style="font-size:10px;display:block;color:var(--tm);">指定+${s.extra.toLocaleString()}</span>`:''}`;
+
+      const disabledNote = isPhoto && !hasCall
+        ? `<div style="font-size:10.5px;color:var(--tm);margin-top:3px;">需先選擇「優雅呼喚」</div>`
+        : isPhoto && !hasPhotographerToday
+          ? `<div style="font-size:10.5px;color:var(--tm);margin-top:3px;">此時段無攝影師排班</div>`
+          : '';
+
       return `
-      <div class="svc${st.services.includes(s.id)?' sel':''}" onclick="toggleSvc('${s.id}')">
-        <div class="schk">${st.services.includes(s.id)?chkSvg():''}</div>
+      <div class="svc${selected?' sel':''}${disabled?' bkd':''}"
+        onclick="${disabled?'':``toggleSvc('${s.id}')``}"
+        style="${disabled?'opacity:0.4;cursor:not-allowed;':''}"
+      >
+        <div class="schk">${selected?chkSvg():''}</div>
         <div class="si">
           <h4>${s.name}</h4>
           <p>${s.desc}</p>
+          ${disabledNote}
         </div>
         <div class="sp">
           ${priceDisplay}
@@ -852,6 +876,11 @@ function toggleSvc(id){
   if(i===-1) st.services.push(id); else st.services.splice(i,1);
   // 若取消勾選衷心之影，清空已選攝影師
   if(id==='photo' && !st.services.includes('photo')) st.photographer=null;
+  // 若取消勾選優雅呼喚，自動取消衷心之影
+  if(id==='call30' && !st.services.includes('call30')){
+    const pi=st.services.indexOf('photo');
+    if(pi!==-1){ st.services.splice(pi,1); st.photographer=null; }
+  }
   render();
 }
 function selectButler(id){ st.butler=id; st.designated=(id!=='none'); render(); }
