@@ -350,14 +350,19 @@ function getPhotographerBookableTimes(dateStr, photoId){
   return [];
 }
 
+const PHOTOGRAPHER_MAX_PER_SLOT = 4; // 每個時段最多可接受的預約數
+
+function getPhotographerBookingCount(dateStr, photoId, time){
+  return reservations.filter(r=>
+    r.date===dateStr && r.photographer===photoId && r.time===time && (r.status||'new')!=='cancelled'
+  ).length;
+}
+
 function isPhotographerAvailable(dateStr, photoId, time){
   const bookable=getPhotographerBookableTimes(dateStr, photoId);
   if(!bookable.includes(time)) return false;
-  // 檢查是否已被預約
-  const taken=reservations.some(r=>
-    r.date===dateStr && r.photographer===photoId && r.time===time && (r.status||'new')!=='cancelled'
-  );
-  return !taken;
+  // 該時段預約數未達上限才算可預約
+  return getPhotographerBookingCount(dateStr, photoId, time) < PHOTOGRAPHER_MAX_PER_SLOT;
 }
 
 // ── Step 5（有選衷心之影時）: 攝影師 ──
@@ -382,10 +387,12 @@ function renderPhotographer(){
         return shifts.includes(st.time);
       }).map(p=>{
         const available=isPhotographerAvailable(st.date, p.id, st.time);
+        const booked=getPhotographerBookingCount(st.date, p.id, st.time);
+        const remaining=PHOTOGRAPHER_MAX_PER_SLOT - booked;
         const photoHtml=p.photo?`<img src="${escH(p.photo)}" alt="${escH(p.name)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`:'' ;
         const initialHtml=`<div class="bcard-initial" style="${p.photo?'display:none':''}">${escH(p.initial)}</div>`;
         const portfolioBtn=p.portfolioUrl?`<a class="bcard-profile" href="${escH(p.portfolioUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">作品集 ↗</a>`:'';
-        const statusLabel=available?'可預約':'已滿';
+        const statusLabel=available?`剩 ${remaining} 名`:'已滿';
         const statusCls=available?'av':'bk';
         return `<div class="bcard${st.photographer===p.id?' sel':''}${!available?' bkd':''}" onclick="${available?`selectPhotographer('${p.id}')`:''}" >
           <div class="bcard-photo">${photoHtml}${initialHtml}</div>
@@ -571,18 +578,8 @@ function renderButler(){
 
   let butlerHtml='';
   if(canDesig){
-    // 只顯示在客人選擇的時段有排班且未被預約的執事
-    const availableButlers = BUTLERS.filter(b=>{
-      return isButlerOnDutyAtTime(st.date, b.id, st.time);
-    });
-    const blockedButlers = BUTLERS.filter(b=>{
-      if(!isButlerOnDutyAtTime(st.date, b.id, st.time)) return false;
-      const timeStatus=getButlerTimesStatus(st.date, b.id);
-      const slotStatus=timeStatus.find(ts=>ts.time===st.time);
-      return slotStatus?.blocked;
-    });
-    // 可指名 = 有排班且未被預約；已滿 = 有排班但已被預約；未排班的直接隱藏
-    const visibleButlers = [...availableButlers, ...blockedButlers];
+    // 只顯示在客人選擇的時段有排班的執事（不管是否已滿），未排班直接隱藏
+    const visibleButlers = BUTLERS.filter(b => isButlerOnDutyAtTime(st.date, b.id, st.time));
 
     butlerHtml=`
       <p style="font-size:11.5px;color:var(--tm);margin-bottom:1rem;letter-spacing:.04em;">✦ 僅「優雅呼喚」及「衷心之影」服務可指名執事</p>
