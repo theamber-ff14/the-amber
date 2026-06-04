@@ -1327,7 +1327,7 @@ async function saveButlerEdit(id){
   renderView('butlers');
 }
 
-function deleteButler(id){
+async function deleteButler(id){
   const b=BUTLERS.find(x=>x.id===id);
   if(!b) return;
   const resCount=reservations.filter(r=>r.butler===id && (r.status||'new')!=='cancelled').length;
