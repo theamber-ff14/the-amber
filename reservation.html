@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Amber 歸宅預約</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300&family=Noto+Serif+TC:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --a50:#FAEEDA;--a100:#FAC775;--a200:#EF9F27;--a400:#BA7517;--a600:#854F0B;--a800:#633806;--a900:#412402;
+  --bg:#1a1410;--bg2:#211a13;--bg3:#2a2118;
+  --sur:rgba(250,238,218,0.06);--surh:rgba(250,238,218,0.1);
+  --bdr:rgba(250,199,117,0.2);--bdrs:rgba(250,199,117,0.45);
+  --tp:#faeeda;--ts:#c8a96e;--tm:rgba(250,238,218,0.45);
+  --gold:#EF9F27;--gl:#FAC775;
+}
+html,body{background:var(--bg);min-height:100vh;font-family:'Noto Serif TC','Cormorant Garamond',serif;color:var(--tp)}
+body{background:
+  radial-gradient(ellipse 60% 40% at 20% 80%,rgba(186,117,23,0.08) 0%,transparent 60%),
+  radial-gradient(ellipse 40% 60% at 85% 15%,rgba(239,159,39,0.06) 0%,transparent 50%),
+  #1a1410;
+  padding-bottom:3rem}
+
+/* ── Header ── */
+.hdr{text-align:center;padding:2.5rem 1.5rem 2rem;border-bottom:1px solid var(--bdr)}
+.hdr-sub{font-size:10px;letter-spacing:.4em;color:var(--ts);text-transform:uppercase;margin-bottom:.5rem}
+.hdr h1{font-family:'Cormorant Garamond',serif;font-size:2.6rem;font-weight:300;letter-spacing:.14em;color:var(--gl);line-height:1}
+.hdr p{font-size:12px;color:var(--tm);letter-spacing:.1em;margin-top:.5rem}
+.orn{color:var(--gold);font-size:1rem;letter-spacing:.6em;margin:.45rem 0;opacity:.65}
+
+/* ── Progress ── */
+.pbr{display:flex;align-items:center;justify-content:center;padding:1.1rem 1.5rem;gap:0;border-bottom:1px solid var(--bdr);overflow-x:auto}
+.sdot{display:flex;flex-direction:column;align-items:center;gap:4px}
+.sdot .dot{width:26px;height:26px;border-radius:50%;border:1px solid var(--bdr);background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--tm);transition:all .3s}
+.sdot.active .dot{border-color:var(--gold);background:rgba(239,159,39,0.15);color:var(--gold)}
+.sdot.done .dot{border-color:var(--a400);background:var(--a800);color:var(--a100);cursor:pointer}
+.sdot.done:hover .dot{background:var(--a600);border-color:var(--a200)}
+.sdot .lbl{font-size:9px;color:var(--tm);letter-spacing:.04em;white-space:nowrap}
+.sdot.active .lbl{color:var(--gold)}.sdot.done .lbl{color:var(--ts);cursor:pointer}
+.sln{height:1px;width:22px;background:var(--bdr);margin-bottom:18px;flex-shrink:0;transition:background .3s}
+.sln.done{background:var(--a400)}
+
+/* ── Layout ── */
+.wrap{max-width:640px;margin:0 auto;padding:2rem 1.5rem}
+.stit{font-family:'Cormorant Garamond',serif;font-size:1.2rem;font-weight:400;color:var(--gl);letter-spacing:.1em;display:flex;align-items:center;gap:.65rem;margin-bottom:1.1rem}
+.stit::before{content:'';display:block;width:16px;height:1px;background:var(--gold);opacity:.6}
+.stit::after{content:'';display:block;flex:1;height:1px;background:var(--bdr)}
+
+/* ── Boxes ── */
+.nbox{background:rgba(239,159,39,0.06);border:1px solid var(--bdr);border-left:3px solid var(--gold);padding:1.1rem 1.3rem;border-radius:4px;font-size:13px;line-height:2;color:var(--ts);margin-bottom:1.25rem}
+.nbox a{color:var(--gold);text-decoration:none;font-family:'Cormorant Garamond',serif;font-size:1.05rem;letter-spacing:.05em}
+.nbox a:hover{color:var(--gl)}
+
+/* ── Checkbox row ── */
+.arow{display:flex;align-items:center;gap:.8rem;padding:.85rem 1.1rem;background:var(--sur);border:1px solid var(--bdr);border-radius:4px;cursor:pointer;transition:background .2s}
+.arow:hover{background:var(--surh)}
+.cchk{width:18px;height:18px;border:1px solid var(--bdrs);border-radius:3px;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
+.cchk.on{background:var(--a400);border-color:var(--a400)}
+.arow span{font-size:13px;color:var(--ts);line-height:1.6}
+
+/* ── Form ── */
+.flbl{display:block;font-size:11px;letter-spacing:.1em;color:var(--ts);margin-bottom:.4rem;text-transform:uppercase}
+.flbl .req{color:var(--gold);margin-left:2px}
+.frow{margin-bottom:1.2rem}
+input[type="text"],input[type="email"],textarea,select{
+  width:100%;background:var(--bg2);border:1px solid var(--bdr);color:var(--tp);
+  padding:.65rem .9rem;border-radius:4px;font-size:13px;font-family:'Noto Serif TC',serif;
+  transition:border-color .2s;appearance:none;-webkit-appearance:none}
+input:focus,textarea:focus,select:focus{outline:none;border-color:var(--gold)}
+select option{background:#2a2118}
+textarea{resize:vertical;min-height:72px;line-height:1.7}
+
+/* ── Time buttons ── */
+.tgrd{display:grid;grid-template-columns:repeat(auto-fill,minmax(95px,1fr));gap:7px;margin-top:.5rem}
+.tbtn{padding:.55rem .4rem;border:1px solid var(--bdr);background:var(--bg2);color:var(--ts);border-radius:4px;font-size:12px;font-family:'Noto Serif TC',serif;cursor:pointer;text-align:center;transition:all .2s;line-height:1.4}
+.tbtn:hover{border-color:var(--gold);color:var(--gl)}
+.tbtn.sel{border-color:var(--gold);background:rgba(239,159,39,0.14);color:var(--gold)}
+.tbtn.unav{opacity:.32;cursor:not-allowed;text-decoration:line-through}
+
+/* ── Services ── */
+.svc{border:1px solid var(--bdr);background:var(--bg2);border-radius:6px;padding:.9rem 1.1rem;margin-bottom:.6rem;cursor:pointer;transition:all .2s;display:flex;align-items:flex-start;gap:.9rem}
+.svc:hover{border-color:var(--bdrs);background:var(--surh)}
+.svc.sel{border-color:var(--gold);background:rgba(239,159,39,0.07)}
+.schk{width:17px;height:17px;border:1px solid var(--bdrs);border-radius:3px;flex-shrink:0;margin-top:2px;display:flex;align-items:center;justify-content:center;transition:all .2s}
+.svc.sel .schk{background:var(--a400);border-color:var(--a400)}
+.si h4{font-family:'Cormorant Garamond',serif;font-size:1rem;color:var(--tp);margin-bottom:2px;letter-spacing:.05em}
+.si p{font-size:12px;color:var(--tm);line-height:1.55}
+.sp{margin-left:auto;font-size:11.5px;color:var(--gold);text-align:right;flex-shrink:0;white-space:nowrap}
+.sp .am{font-family:'Cormorant Garamond',serif;font-size:1.05rem;display:block}
+.cpnl{background:rgba(186,117,23,0.08);border:1px solid var(--bdrs);border-radius:6px;padding:1.1rem 1.4rem;margin-top:1.2rem;display:flex;justify-content:space-between;align-items:center}
+.ctot{font-family:'Cormorant Garamond',serif;font-size:1.75rem;font-weight:300;color:var(--gl)}
+.clbl{font-size:11px;color:var(--ts);letter-spacing:.1em}
+.cunt{font-size:11px;color:var(--ts)}
+
+/* ── Butler card grid ── */
+.bcard-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:12px}
+.bcard{border:1px solid var(--bdr);background:var(--bg2);border-radius:10px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;display:flex;flex-direction:column}
+.bcard:hover:not(.bkd){border-color:var(--bdrs);transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,0.3)}
+.bcard.sel{border-color:var(--gold);box-shadow:0 0 0 2px rgba(239,159,39,0.25)}
+.bcard.bkd{opacity:.38;pointer-events:none;filter:grayscale(40%)}
+.bcard-photo{width:100%;aspect-ratio:3/4;object-fit:cover;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:2.2rem;color:var(--gold);flex-shrink:0;position:relative}
+.bcard-photo img{width:100%;height:100%;object-fit:cover;object-position:top}
+.bcard-photo .bcard-initial{font-family:'Cormorant Garamond',serif;font-size:2.5rem;color:var(--gold);opacity:.6}
+.bcard.sel .bcard-photo::after{content:'✦';position:absolute;top:8px;right:10px;color:var(--gold);font-size:14px;text-shadow:0 0 8px rgba(239,159,39,0.8)}
+.bcard-body{padding:.7rem .85rem .85rem;flex:1;display:flex;flex-direction:column;gap:4px}
+.bcard-name{font-family:'Cormorant Garamond',serif;font-size:1.05rem;color:var(--tp);letter-spacing:.06em}
+.bcard-tag{font-size:10px;color:var(--tm)}
+.bcard-footer{display:flex;align-items:center;justify-content:space-between;margin-top:auto;padding-top:.4rem;gap:.35rem}
+.bcard-status{font-size:10px;padding:2px 8px;border-radius:20px;flex-shrink:0}
+.bcard-status.av{background:rgba(99,152,34,0.15);color:#97C459}
+.bcard-status.bk{background:rgba(162,45,45,0.15);color:#F09595}
+.bcard-profile{font-size:10px;padding:2px 7px;border:1px solid var(--bdr);border-radius:20px;background:transparent;color:var(--ts);text-decoration:none;transition:all .2s;white-space:nowrap}
+.bcard-profile:hover{border-color:var(--gold);color:var(--gold)}
+.bcard.sel .bcard-status{display:none}
+.bcard.sel .bcard-name{color:var(--gold)}
+.nopref{display:flex;align-items:center;gap:.65rem;padding:.8rem 1.1rem;border:1px dashed var(--bdr);border-radius:6px;cursor:pointer;font-size:13px;color:var(--ts);margin-top:.75rem;transition:all .2s}
+.nopref:hover{border-color:var(--bdrs);color:var(--tp)}
+.nopref.sel{border-color:var(--gold);color:var(--gold)}
+.rrdo{width:15px;height:15px;border-radius:50%;border:1px solid var(--bdrs);flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .2s}
+.rrdo.on{border-color:var(--gold);background:var(--gold)}
+.rrdo.on::after{content:'';width:5px;height:5px;border-radius:50%;background:var(--bg);display:block}
+
+/* ── RP ── */
+.ropt{display:flex;align-items:flex-start;gap:.65rem;padding:.8rem 1.1rem;border:1px solid var(--bdr);border-radius:6px;cursor:pointer;margin-bottom:.55rem;transition:all .2s;background:var(--bg2)}
+.ropt:hover{border-color:var(--bdrs)}
+.ropt.sel{border-color:var(--gold);background:rgba(239,159,39,0.06)}
+.ropt.sel .rrdo{border-color:var(--gold);background:var(--gold)}
+.ropt.sel .rrdo::after{content:'';width:5px;height:5px;border-radius:50%;background:var(--bg);display:block}
+.rtxt{font-size:13px;color:var(--ts);line-height:1.6}
+.rtxt strong{color:var(--tp);display:block;font-weight:500;font-size:13.5px;margin-bottom:1px}
+.ttag{padding:.3rem .85rem;border:1px solid var(--bdr);border-radius:20px;font-size:12px;cursor:pointer;background:var(--bg2);color:var(--ts);transition:all .2s;display:inline-block}
+.ttag:hover{border-color:var(--bdrs);color:var(--tp)}
+.ttag.on{border-color:var(--gold);background:rgba(239,159,39,0.1);color:var(--gold)}
+
+/* ── Summary ── */
+.smr{display:flex;justify-content:space-between;align-items:baseline;padding:.55rem 0;border-bottom:1px solid rgba(250,199,117,0.1);font-size:13px}
+.smr .sk{color:var(--tm);flex-shrink:0}
+.smr .sv{color:var(--tp);text-align:right;margin-left:.75rem}
+.smrt{display:flex;justify-content:space-between;padding:.8rem 0;font-family:'Cormorant Garamond',serif}
+.smrt .tk{font-size:13px;color:var(--ts);letter-spacing:.1em}
+.smrt .tv{font-size:1.4rem;color:var(--gl)}
+.sbox{background:var(--bg2);border:1px solid var(--bdr);border-radius:6px;padding:1.1rem 1.3rem;margin-bottom:1.25rem}
+.divl{width:100%;height:1px;background:linear-gradient(90deg,transparent,var(--bdrs),transparent);margin:.4rem 0}
+
+/* ── Buttons ── */
+.bnxt{display:block;width:100%;padding:.88rem;background:linear-gradient(135deg,var(--a400),var(--a200));border:none;border-radius:4px;color:var(--a900);font-family:'Noto Serif TC',serif;font-size:13.5px;letter-spacing:.15em;cursor:pointer;margin-top:1.75rem;transition:opacity .2s;font-weight:500}
+.bnxt:hover{opacity:.88}.bnxt:disabled{opacity:.3;cursor:not-allowed}
+.bbk{display:block;width:100%;padding:.7rem;background:transparent;border:1px solid var(--bdr);border-radius:4px;color:var(--ts);font-family:'Noto Serif TC',serif;font-size:13px;letter-spacing:.1em;cursor:pointer;margin-top:.6rem;transition:all .2s}
+.bbk:hover{border-color:var(--bdrs);color:var(--tp)}
+
+/* ── Success ── */
+.succ{text-align:center;padding:3rem 1.5rem}
+.succ-ic{font-size:2.5rem;color:var(--gold);margin-bottom:1.1rem}
+.succ h2{font-family:'Cormorant Garamond',serif;font-size:1.85rem;font-weight:300;color:var(--gl);letter-spacing:.12em;margin-bottom:.65rem}
+.succ p{font-size:13px;color:var(--ts);line-height:2.1}
+.dcbtn{display:inline-flex;align-items:center;gap:.55rem;margin-top:2rem;padding:.85rem 2rem;background:#5865F2;border:none;border-radius:6px;color:#fff;font-family:'Noto Serif TC',serif;font-size:13px;letter-spacing:.08em;cursor:pointer;transition:opacity .2s;text-decoration:none}
+.dcbtn:hover{opacity:.88}
+
+/* ── Info note ── */
+.infonote{font-size:11px;color:var(--tm);letter-spacing:.05em;line-height:1.9;text-align:center;margin-bottom:1.25rem}
+
+/* ── Desig note ── */
+.dnote{margin-top:.85rem;font-size:12px;color:var(--gold);padding:.65rem 1rem;border:1px solid rgba(239,159,39,0.3);border-radius:4px;background:rgba(239,159,39,0.06)}
+
+/* ── No dates ── */
+.nodate{text-align:center;padding:2.5rem 1rem;color:var(--tm);font-size:13px;line-height:2}
+
+.fgrd{display:grid;grid-template-columns:1fr 1fr;gap:.9rem}
+@media(max-width:480px){.fgrd{grid-template-columns:1fr}}
+
+.fade{animation:fi .35s ease}
+@keyframes fi{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-sub">F F 1 4 · 繁 中 服 · 鳳 凰</div>
+  <div class="orn">✦ ✦ ✦</div>
+  <h1>The Amber</h1>
+  <p>琥珀執事咖啡廳　歸宅預約</p>
+</div>
+
+<div id="pbr" class="pbr"></div>
+<div id="main" class="wrap"></div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  STORAGE KEY（與後台共用）
+// ═══════════════════════════════════════════════
+const STORAGE_KEY_SCHEDULE = 'amber_schedule';
+const STORAGE_KEY_RES = 'amber_reservations';
+const DC_LINK = 'https://discord.gg/Hr7QGWqx';
+
+// ═══════════════════════════════════════════════
+//  執事 & 攝影師 & 服務定義
+// ═══════════════════════════════════════════════
+let BUTLERS = [
+  {id:'b1',name:'亞修',initial:'亞',tag:'執事長'},
+  {id:'b2',name:'萊昂',initial:'萊',tag:'資深執事'},
+  {id:'b3',name:'艾倫',initial:'艾',tag:'執事'},
+  {id:'b4',name:'克勞德',initial:'克',tag:'執事'},
+  {id:'b5',name:'伊森',initial:'伊',tag:'見習執事'},
+];
+
+let PHOTOGRAPHERS = [
+  {id:'p1',name:'Hinako',initial:'H',price:120000,portfolioUrl:'https://hinakoff14tc.carrd.co/',photo:''},
+  {id:'p2',name:'煙鏡',initial:'煙',price:20000,portfolioUrl:'https://rainy-powder-d75.notion.site/mirrorsmoke?source=copy_link',photo:''},
+];
+
+const SERVICES = [
+  {id:'afternoon',name:'宅邸午茶',desc:'純享用餐點，不受任何執事打擾（現場可追加預約）',price:0,dur:30,canDesig:false},
+  {id:'call30',name:'優雅呼喚',desc:'享用餐點，與執事一同談心陪伴（30分鐘）',price:60000,dur:30,extra:40000,canDesig:true},
+  {id:'private',name:'專屬時光',desc:'主題式包廂空間，您的私人隱密空間',price:40000,dur:30,canDesig:false},
+  {id:'photo',name:'衷心之影',desc:'指定攝影師拍立得一張，化作永恆的珍貴時刻',price:0,dur:15,canDesig:false,needPhoto:true},
+];
+
+const STEPS_BASE = [
+  {id:'agree',label:'宅邸規範'},
+  {id:'datetime',label:'日期時段'},
+  {id:'service',label:'服務選擇'},
+  {id:'butler',label:'指名執事'},
+  {id:'rp',label:'RP設定'},
+  {id:'info',label:'基本資料'},
+  {id:'confirm',label:'確認送出'},
+];
+const STEPS_WITH_PHOTO = [
+  {id:'agree',label:'宅邸規範'},
+  {id:'datetime',label:'日期時段'},
+  {id:'service',label:'服務選擇'},
+  {id:'butler',label:'指名執事'},
+  {id:'photographer',label:'攝影師'},
+  {id:'rp',label:'RP設定'},
+  {id:'info',label:'基本資料'},
+  {id:'confirm',label:'確認送出'},
+];
+
+function getSteps(){ return st.services.includes('photo') ? STEPS_WITH_PHOTO : STEPS_BASE; }
+
+// ═══════════════════════════════════════════════
+//  狀態
+// ═══════════════════════════════════════════════
+let schedule = {};
+let reservations = [];
+let st = {
+  step:0, agreed:false, date:'', time:'',
+  services:[], designated:false, butler:null,
+  photographer:null,
+  rp:'', rpTitle:'', rpTitleCustom:'', rpNote:'',
+  gameName:'', server:'', contact:'', notes:''
+};
+
+// ═══════════════════════════════════════════════
+//  Storage（localStorage，與後台共用）
+// ═══════════════════════════════════════════════
+function loadData(){
+  try{ const v=localStorage.getItem(STORAGE_KEY_SCHEDULE); if(v) schedule=JSON.parse(v); }catch(e){}
+  try{ const v=localStorage.getItem(STORAGE_KEY_RES); if(v) reservations=JSON.parse(v); }catch(e){}
+  try{ const v=localStorage.getItem('amber_butlers'); if(v) BUTLERS=JSON.parse(v); }catch(e){}
+  try{ const v=localStorage.getItem('amber_photographers'); if(v) PHOTOGRAPHERS=JSON.parse(v); }catch(e){}
+}
+function saveReservations(){
+  try{ localStorage.setItem(STORAGE_KEY_RES, JSON.stringify(reservations)); return true; }catch(e){ return false; }
+}
+
+// ═══════════════════════════════════════════════
+//  時段邏輯
+// ═══════════════════════════════════════════════
+function getAvailTimes(dateStr){
+  const d=schedule[dateStr];
+  if(!d||!d.open) return [];
+  const times=(d.times||[]).slice().sort();
+  // 只保留整點（XX:00），排除 XX:30
+  // 再去掉最後一個整點（打烊時間，不可作為預約起始）
+  const wholeTimes=times.filter(t=>t.endsWith(':00'));
+  if(wholeTimes.length>1) return wholeTimes.slice(0,-1);
+  return [];
+}
+
+// 取得執事在某日可作為預約起始的時段（只顯示整點，排除最後一個整點）
+function getButlerBookableTimes(dateStr, butlerId){
+  const day=schedule[dateStr];
+  if(!day) return [];
+  let shifts=[];
+  if(day.butlerShifts !== undefined){
+    shifts=(day.butlerShifts[butlerId]||[]).slice().sort();
+  } else {
+    shifts=(day.times||[]).slice().sort();
+  }
+  // 同樣只保留整點，排除最後一個整點
+  const wholeTimes=shifts.filter(t=>t.endsWith(':00'));
+  if(wholeTimes.length>1) return wholeTimes.slice(0,-1);
+  return [];
+}
+
+// 某執事在某日某時段是否可被預約（在執事可預約起始時段內）
+function isButlerOnDutyAtTime(dateStr, butlerId, time){
+  return getButlerBookableTimes(dateStr, butlerId).includes(time);
+}
+
+// 回傳某日某執事的時段狀態：{time, offDuty, blocked}
+function getButlerTimesStatus(dateStr, butlerId){
+  const allTimes=getAvailTimes(dateStr);
+  const dayRes=reservations.filter(r=>r.date===dateStr && r.butler===butlerId && (r.status||'new')!=='cancelled');
+  const blocked=new Set();
+  dayRes.forEach(r=>{
+    // 只封鎖已被預約的整點本身
+    // XX:30 已從 allTimes 排除，緩衝自然存在，不需要再封鎖下一格
+    if(allTimes.includes(r.time)) blocked.add(r.time);
+  });
+  return allTimes.map(t=>({
+    time:t,
+    offDuty: !isButlerOnDutyAtTime(dateStr, butlerId, t),
+    blocked: blocked.has(t),
+  }));
+}
+
+function calcTotal(){
+  let t=0;
+  const hasDesig=st.designated&&st.butler&&st.butler!=='none';
+  st.services.forEach(sid=>{
+    const s=SERVICES.find(x=>x.id===sid);
+    if(s){ t+=s.price; if(hasDesig&&s.extra) t+=s.extra; }
+  });
+  // 攝影師費用
+  if(st.photographer){
+    const p=PHOTOGRAPHERS.find(x=>x.id===st.photographer);
+    if(p) t+=p.price;
+  }
+  return t;
+}
+
+// 攝影師在某日某時段的排班（同執事邏輯）
+function getPhotographerBookableTimes(dateStr, photoId){
+  const day=schedule[dateStr];
+  if(!day) return [];
+  let shifts=[];
+  if(day.photographerShifts!==undefined){
+    shifts=(day.photographerShifts[photoId]||[]).slice().sort();
+  } else {
+    return [];
+  }
+  const wholeTimes=shifts.filter(t=>t.endsWith(':00'));
+  if(wholeTimes.length>1) return wholeTimes.slice(0,-1);
+  return [];
+}
+
+function isPhotographerAvailable(dateStr, photoId, time){
+  const bookable=getPhotographerBookableTimes(dateStr, photoId);
+  if(!bookable.includes(time)) return false;
+  // 檢查是否已被預約
+  const taken=reservations.some(r=>
+    r.date===dateStr && r.photographer===photoId && r.time===time && (r.status||'new')!=='cancelled'
+  );
+  return !taken;
+}
+
+// ── Step 5（有選衷心之影時）: 攝影師 ──
+function renderPhotographer(){
+  const total=calcTotal();
+  setMain(`
+    <div class="stit">選擇攝影師</div>
+    <p style="font-size:11.5px;color:var(--tm);margin-bottom:1rem;letter-spacing:.04em;">✦ 請選擇為您拍攝拍立得的攝影師（必選其一）</p>
+    <div class="bcard-grid">
+      ${PHOTOGRAPHERS.map(p=>{
+        const available=isPhotographerAvailable(st.date, p.id, st.time);
+        const photoHtml=p.photo?`<img src="${escH(p.photo)}" alt="${escH(p.name)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`:'' ;
+        const initialHtml=`<div class="bcard-initial" style="${p.photo?'display:none':''}">${escH(p.initial)}</div>`;
+        const portfolioBtn=p.portfolioUrl?`<a class="bcard-profile" href="${escH(p.portfolioUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">作品集 ↗</a>`:'';
+        const statusLabel=available?'可預約':'已滿';
+        const statusCls=available?'av':'bk';
+        return `<div class="bcard${st.photographer===p.id?' sel':''}${!available?' bkd':''}" onclick="${available?`selectPhotographer('${p.id}')`:''}" >
+          <div class="bcard-photo">${photoHtml}${initialHtml}</div>
+          <div class="bcard-body">
+            <div class="bcard-name">${escH(p.name)}</div>
+            <div class="bcard-tag" style="color:var(--gold);font-size:11px;">${p.price.toLocaleString()} Gil</div>
+            <div class="bcard-footer">
+              <div class="bcard-status ${statusCls}">${statusLabel}</div>
+              ${portfolioBtn}
+            </div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div class="cpnl" style="margin-top:1.1rem;">
+      <div><div class="clbl">目前費用合計</div></div>
+      <div style="text-align:right"><div class="ctot">${total.toLocaleString()}</div><div class="cunt">Gil</div></div>
+    </div>
+    <button class="bnxt" onclick="next()" ${st.photographer?'':'disabled'}>下一步　→</button>
+    <button class="bbk" onclick="prev()">← 返回</button>
+  `);
+}
+
+// ═══════════════════════════════════════════════
+//  Render 系統
+// ═══════════════════════════════════════════════
+function setMain(html){
+  const m=document.getElementById('main');
+  m.className='wrap fade';
+  m.innerHTML=html;
+}
+
+function renderProgress(){
+  const STEPS=getSteps();
+  document.getElementById('pbr').innerHTML=STEPS.map((s,i)=>{
+    let cls='';
+    if(i<st.step) cls='done';
+    else if(i===st.step) cls='active';
+    const clickable = i<st.step;
+    return (i===0?'':
+      `<div class="sln${i<=st.step?' done':''}"></div>`)+
+      `<div class="sdot ${cls}" ${clickable?`onclick="jumpToStep(${i})" title="返回${s.label}"`:''}>
+        <div class="dot">${i<st.step?'✓':i+1}</div>
+        <div class="lbl">${s.label}</div>
+      </div>`;
+  }).join('');
+}
+
+function render(){
+  renderProgress();
+  const STEPS=getSteps();
+  const id=STEPS[st.step]?.id;
+  if(id==='agree') renderAgree();
+  else if(id==='datetime') renderDatetime();
+  else if(id==='service') renderService();
+  else if(id==='butler') renderButler();
+  else if(id==='photographer') renderPhotographer();
+  else if(id==='rp') renderRP();
+  else if(id==='info') renderInfo();
+  else if(id==='confirm') renderConfirm();
+}
+
+// ── Step 1: 同意 ──
+function renderAgree(){
+  setMain(`
+    <div class="stit">宅邸規範同意書</div>
+    <div class="nbox">
+      預約前，請務必詳細閱讀宅邸規範與注意事項。<br><br>
+      <a href="https://theamberff14.wixsite.com/home/reservation" target="_blank">✦ 點此查看完整歸宅須知 →</a><br><br>
+      確認閱讀完畢後，請勾選下方同意選項以繼續。
+    </div>
+    <div class="arow" onclick="toggleAgree()">
+      <div class="cchk${st.agreed?' on':''}">
+        ${st.agreed?chkSvg():''}
+      </div>
+      <span>本人已詳細閱讀並同意遵守宅邸所有規範。違規將可能導致預約取消。</span>
+    </div>
+    <button class="bnxt" onclick="next()" ${st.agreed?'':'disabled'}>前往預約　→</button>
+  `);
+}
+
+// ── Step 2: 日期與時段 ──
+function renderDatetime(){
+  const today=new Date().toISOString().split('T')[0];
+  const openDates=Object.keys(schedule)
+    .filter(d=>schedule[d]?.open && d>=today)
+    .sort();
+
+  let timesHtml='';
+  if(st.date){
+    const times=getAvailTimes(st.date);
+    timesHtml=`
+      <div class="stit" style="margin-top:1.4rem;">預約時段</div>
+      ${times.length===0?
+        `<div class="nbox" style="color:var(--tm)">此日期尚無開放時段，請選擇其他日期。</div>`:
+        `<div class="tgrd">
+          ${times.map(t=>`
+            <button class="tbtn${st.time===t?' sel':''}" onclick="selectTime('${t}')">${t}</button>
+          `).join('')}
+        </div>
+        <p style="font-size:11px;color:var(--tm);margin-top:.55rem;letter-spacing:.04em;">✦ 執事是否可指名，將於下一步依時段確認</p>`
+      }
+    `;
+  }
+
+  setMain(`
+    <div class="stit">預約日期</div>
+    ${openDates.length===0?
+      `<div class="nodate">
+        目前尚無開放預約的場次<br>
+        <span style="font-size:11px;">請關注官網或 DC 伺服器的最新公告</span>
+      </div>`
+      :
+      `<div class="frow">
+        <label class="flbl">選擇開放日期<span class="req">*</span></label>
+        <select id="inp-date" onchange="selectDate(this.value)">
+          <option value="">— 請選擇日期 —</option>
+          ${openDates.map(d=>{
+            const label=schedule[d].label?` ${schedule[d].label}`:'';
+            return `<option value="${d}" ${st.date===d?'selected':''}>${d}${label}</option>`;
+          }).join('')}
+        </select>
+      </div>`
+    }
+    ${timesHtml}
+    <button class="bnxt" onclick="next()" ${st.date&&st.time?'':'disabled'}>下一步　→</button>
+    <button class="bbk" onclick="prev()">← 返回</button>
+  `);
+}
+
+// ── Step 3: 服務 ──
+function renderService(){
+  const total=calcTotal();
+  setMain(`
+    <div class="stit">預約服務</div>
+    ${SERVICES.map(s=>`
+      <div class="svc${st.services.includes(s.id)?' sel':''}" onclick="toggleSvc('${s.id}')">
+        <div class="schk">${st.services.includes(s.id)?chkSvg():''}</div>
+        <div class="si">
+          <h4>${s.name}</h4>
+          <p>${s.desc}</p>
+        </div>
+        <div class="sp">
+          <span class="am">${s.price===0?'免費':s.price.toLocaleString()+' Gil'}</span>
+          ${s.extra?`<span style="font-size:10px;display:block;color:var(--tm);">指定+${s.extra.toLocaleString()}</span>`:''}
+          <span>${s.dur}min</span>
+        </div>
+      </div>
+    `).join('')}
+    <div class="cpnl">
+      <div><div class="clbl">預計費用合計</div><div style="font-size:10px;color:var(--tm);margin-top:2px;">※ 指名費於下一步計算</div></div>
+      <div style="text-align:right"><div class="ctot">${total.toLocaleString()}</div><div class="cunt">Gil</div></div>
+    </div>
+    <button class="bnxt" onclick="next()" ${st.services.length>0?'':'disabled'}>下一步　→</button>
+    <button class="bbk" onclick="prev()">← 返回</button>
+  `);
+}
+
+// ── Step 4: 執事 ──
+function renderButler(){
+  const daySchedule=schedule[st.date];
+  // 取得有排班的執事清單
+  let onDutyButlers;
+  if(daySchedule?.butlerShifts){
+    const shifts=daySchedule.butlerShifts;
+    onDutyButlers=BUTLERS.filter(b=>(shifts[b.id]||[]).length>0);
+  } else {
+    const onDutyIds=daySchedule?.butlers||BUTLERS.map(b=>b.id);
+    onDutyButlers=BUTLERS.filter(b=>onDutyIds.includes(b.id));
+  }
+  const canDesig=st.services.some(sid=>SERVICES.find(s=>s.id===sid)?.canDesig);
+  const total=calcTotal();
+
+  let butlerHtml='';
+  if(canDesig){
+    butlerHtml=`
+      <p style="font-size:11.5px;color:var(--tm);margin-bottom:1rem;letter-spacing:.04em;">✦ 僅「優雅呼喚」及「衷心之影」服務可指名執事</p>
+      <div class="bcard-grid">
+        ${onDutyButlers.map(b=>{
+          const timeStatus=getButlerTimesStatus(st.date, b.id);
+          const slotStatus=timeStatus.find(ts=>ts.time===st.time);
+          const available = slotStatus ? (!slotStatus.offDuty && !slotStatus.blocked) : false;
+          const photoHtml = b.photo
+            ? `<img src="${escH(b.photo)}" alt="${escH(b.name)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+            : '';
+          const initialHtml = `<div class="bcard-initial" style="${b.photo?'display:none':''}">${escH(b.initial||b.name.slice(0,1))}</div>`;
+          const profileBtn = b.profileUrl
+            ? `<a class="bcard-profile" href="${escH(b.profileUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">個人頁面 ↗</a>`
+            : '';
+          let statusLabel='可指名', statusCls='av';
+          if(!slotStatus||slotStatus.offDuty){ statusLabel='未排班'; statusCls='bk'; }
+          else if(slotStatus.blocked){ statusLabel='已滿'; statusCls='bk'; }
+          return `<div class="bcard${st.butler===b.id?' sel':''}${!available?' bkd':''}" onclick="${available?`selectButler('${b.id}')`:''}" >
+            <div class="bcard-photo">${photoHtml}${initialHtml}</div>
+            <div class="bcard-body">
+              <div class="bcard-name">${escH(b.name)}</div>
+              <div class="bcard-tag">${escH(b.tag)}</div>
+              <div class="bcard-footer">
+                <div class="bcard-status ${statusCls}">${statusLabel}</div>
+                ${profileBtn}
+              </div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+      <div class="nopref${st.butler==='none'?' sel':''}" onclick="selectButler('none')">
+        <div class="rrdo${st.butler==='none'?' on':''}"></div>
+        不指定執事（由宅邸安排）
+      </div>
+    `;
+  } else {
+    if(!st.butler){ st.butler='none'; st.designated=false; }
+    butlerHtml=`
+      <div class="nbox" style="text-align:center;">
+        您所選擇的服務不含指名選項。
+      </div>
+    `;
+  }
+
+  const desigNote = st.butler&&st.butler!=='none' ? `
+    <div class="dnote">✦ 已選擇指名執事，相關服務將加收指名費 40,000 Gil</div>` : '';
+
+  setMain(`
+    <div class="stit">指名執事</div>
+    ${butlerHtml}
+    ${desigNote}
+    <div class="cpnl" style="margin-top:1.1rem;">
+      <div><div class="clbl">目前費用合計</div><div style="font-size:10px;color:var(--tm);margin-top:2px;">（含指名費）</div></div>
+      <div style="text-align:right"><div class="ctot">${total.toLocaleString()}</div><div class="cunt">Gil</div></div>
+    </div>
+    <button class="bnxt" onclick="next()" ${st.butler?'':'disabled'}>下一步　→</button>
+    <button class="bbk" onclick="prev()">← 返回</button>
+  `);
+}
+
+// ── Step 5: RP ──
+function renderRP(){
+  const rpOpts=[
+    {id:'light',label:'輕 RP',desc:'以自身角色進行，保持輕鬆氛圍即可'},
+    {id:'medium',label:'中 RP',desc:'扮演特定角色，有背景設定的沉浸體驗'},
+    {id:'none',label:'無 RP',desc:'不進行角色扮演，正常互動即可'},
+  ];
+  const titleOpts=['主人','大小姐','少爺','自訂'];
+  setMain(`
+    <div class="stit">RP 設定</div>
+    ${rpOpts.map(o=>`
+      <div class="ropt${st.rp===o.id?' sel':''}" onclick="selectRP('${o.id}')">
+        <div class="rrdo${st.rp===o.id?' on':''}"></div>
+        <div class="rtxt"><strong>${o.label}</strong>${o.desc}</div>
+      </div>
+    `).join('')}
+    <div class="frow" style="margin-top:1.1rem;">
+      <label class="flbl">稱謂選擇<span class="req">*</span></label>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:${st.rpTitle==='自訂'?'.6rem':'0'}">
+        ${titleOpts.map(t=>`<div class="ttag${st.rpTitle===t?' on':''}" onclick="selectRPTitle('${t}')">${t}</div>`).join('')}
+      </div>
+      ${st.rpTitle==='自訂'?`
+        <input type="text" id="inp-ctitle" placeholder="請簡述自訂稱謂..." value="${escH(st.rpTitleCustom)}">
+      `:''}
+    </div>
+    <div class="frow">
+      <label class="flbl">角色設定備註（選填）</label>
+      <textarea id="inp-rpnote" placeholder="角色名稱、背景設定、特別需求或禁忌事項..." rows="3">${escH(st.rpNote)}</textarea>
+    </div>
+    <button class="bnxt" onclick="collectRP()">下一步　→</button>
+    <button class="bbk" onclick="prev()">← 返回</button>
+  `);
+}
+
+// ── Step 6: 基本資料 ──
+function renderInfo(){
+  const servers=['伊弗利特','迦樓羅','利維坦','鳳凰','奧汀','巴哈姆特','泰坦'];
+  setMain(`
+    <div class="stit">基本資料</div>
+    <div class="frow">
+      <label class="flbl">遊戲角色名<span class="req">*</span></label>
+      <input type="text" id="inp-game" placeholder="請輸入遊戲內角色名稱" value="${escH(st.gameName)}">
+    </div>
+    <div class="frow">
+      <label class="flbl">所在伺服器<span class="req">*</span></label>
+      <select id="inp-server">
+        <option value="">— 請選擇伺服器 —</option>
+        ${servers.map(s=>`<option value="${s}" ${st.server===s?'selected':''}>${s}</option>`).join('')}
+      </select>
+    </div>
+    <div class="frow">
+      <label class="flbl">聯絡方式（DC / 遊戲ID）<span class="req">*</span></label>
+      <input type="text" id="inp-contact" placeholder="Discord 帳號 或 遊戲 ID" value="${escH(st.contact)}">
+    </div>
+    <div class="frow">
+      <label class="flbl">其他備註（選填）</label>
+      <textarea id="inp-notes" placeholder="任何特殊需求或想讓執事事先了解的事..." rows="2">${escH(st.notes)}</textarea>
+    </div>
+    <button class="bnxt" onclick="collectInfo()">前往確認　→</button>
+    <button class="bbk" onclick="prev()">← 返回</button>
+  `);
+}
+
+// ── Step 7/8: 確認 ──
+function renderConfirm(){
+  const butler=st.butler==='none'?'不指定（宅邸安排）':(BUTLERS.find(b=>b.id===st.butler)?.name||'');
+  const svcs=st.services.map(sid=>SERVICES.find(s=>s.id===sid)?.name).join('、');
+  const rpLbl={light:'輕 RP',medium:'中 RP',none:'無 RP'}[st.rp]||'';
+  const titleLbl=st.rpTitle==='自訂'?(st.rpTitleCustom||'自訂'):st.rpTitle;
+  const total=calcTotal();
+  const hasDesig=st.butler&&st.butler!=='none';
+  const photoName=st.photographer?(PHOTOGRAPHERS.find(p=>p.id===st.photographer)?.name||''):null;
+  setMain(`
+    <div class="stit">確認預約內容</div>
+    <div class="sbox">
+      <div class="smr"><span class="sk">預約日期</span><span class="sv">${st.date}${schedule[st.date]?.label?' '+schedule[st.date].label:''}</span></div>
+      <div class="smr"><span class="sk">預約時段</span><span class="sv">${st.time}</span></div>
+      <div class="smr"><span class="sk">預約服務</span><span class="sv">${svcs}</span></div>
+      <div class="smr"><span class="sk">指名執事</span><span class="sv">${butler}</span></div>
+      ${photoName?`<div class="smr"><span class="sk">攝影師</span><span class="sv">${escH(photoName)}</span></div>`:''}
+      <div class="smr"><span class="sk">RP 設定</span><span class="sv">${rpLbl}</span></div>
+      <div class="smr"><span class="sk">稱謂</span><span class="sv">${titleLbl}</span></div>
+      <div class="smr"><span class="sk">角色名</span><span class="sv">${st.gameName}</span></div>
+      <div class="smr"><span class="sk">伺服器</span><span class="sv">${st.server}</span></div>
+      <div class="smr"><span class="sk">聯絡方式</span><span class="sv">${st.contact}</span></div>
+      ${st.rpNote?`<div class="smr"><span class="sk">角色備註</span><span class="sv">${escH(st.rpNote)}</span></div>`:''}
+      ${st.notes?`<div class="smr"><span class="sk">其他備註</span><span class="sv">${escH(st.notes)}</span></div>`:''}
+      <div class="divl"></div>
+      <div class="smrt">
+        <span class="tk">預計費用合計</span>
+        <span class="tv">${total.toLocaleString()} Gil${hasDesig?' （含指名費）':''}</span>
+      </div>
+    </div>
+    <div class="infonote">
+      ✦ 送出後請加入 DC 伺服器等待預約確認<br>
+      ✦ 實際費用以現場服務為準
+    </div>
+    <button class="bnxt" onclick="submitRes()">確認送出預約</button>
+    <button class="bbk" onclick="prev()">← 修改資料</button>
+  `);
+}
+
+// ── 成功頁面 ──
+function renderSuccess(gameName){
+  document.getElementById('pbr').innerHTML='';
+  setMain(`
+    <div class="succ">
+      <div class="succ-ic">✦</div>
+      <h2>歸宅申請已送出</h2>
+      <p>
+        親愛的主人，${escH(gameName)}，<br>
+        您的預約申請已成功送出。<br><br>
+        請加入琥珀宅邸 DC 伺服器，<br>
+        等待執事們確認您的訂位結果。<br><br>
+        期待在海岸夕陽下，<br>
+        與您再次相見。
+      </p>
+      <a class="dcbtn" href="${DC_LINK}" target="_blank">
+        <svg width="18" height="14" viewBox="0 0 20 16" fill="white"><path d="M16.93 1.33A16.46 16.46 0 0012.86.02a.07.07 0 00-.07.03c-.18.3-.38.7-.52 1.01a15.26 15.26 0 00-4.54 0 10.2 10.2 0 00-.53-1A.07.07 0 007.13 0C5.8.24 4.51.63 3.29 1.18a.06.06 0 00-.03.03C.48 5.5-.29 9.56.09 13.57c0 .02.01.04.03.05a16.56 16.56 0 004.94 2.49.07.07 0 00.08-.03c.38-.52.72-1.07 1.01-1.65a.07.07 0 00-.04-.1 10.9 10.9 0 01-1.55-.74.07.07 0 010-.12l.31-.24a.07.07 0 01.07-.01c3.25 1.48 6.77 1.48 9.99 0a.07.07 0 01.07.01l.31.24a.07.07 0 010 .12 10.2 10.2 0 01-1.56.74.07.07 0 00-.04.1c.3.58.64 1.13 1.01 1.65a.07.07 0 00.08.02 16.5 16.5 0 004.95-2.49.07.07 0 00.03-.05c.41-4.65-.69-8.68-2.91-12.24a.05.05 0 00-.02-.04z"/></svg>
+        加入 Discord 伺服器
+      </a>
+      <br>
+      <button class="bbk" style="max-width:260px;margin:.85rem auto 0;" onclick="resetForm()">再次預約</button>
+    </div>
+  `);
+}
+
+// ═══════════════════════════════════════════════
+//  事件處理
+// ═══════════════════════════════════════════════
+function selectPhotographer(id){ st.photographer=id; render(); }
+function toggleAgree(){ st.agreed=!st.agreed; render(); }
+function next(){ st.step++; render(); }
+function prev(){ st.step--; render(); }
+function jumpToStep(i){ if(i<st.step){ st.step=i; render(); } }
+function selectDate(v){ st.date=v; st.time=''; render(); }
+function selectTime(t){ st.time=t; render(); }
+function toggleSvc(id){
+  const i=st.services.indexOf(id);
+  if(i===-1) st.services.push(id); else st.services.splice(i,1);
+  // 若取消勾選衷心之影，清空已選攝影師
+  if(id==='photo' && !st.services.includes('photo')) st.photographer=null;
+  render();
+}
+function selectButler(id){ st.butler=id; st.designated=(id!=='none'); render(); }
+function selectRP(id){ st.rp=id; render(); }
+function selectRPTitle(t){ st.rpTitle=t; render(); }
+
+function collectRP(){
+  st.rpNote=document.getElementById('inp-rpnote')?.value||'';
+  if(st.rpTitle==='自訂') st.rpTitleCustom=document.getElementById('inp-ctitle')?.value||'';
+  if(!st.rp){ alert('請選擇 RP 設定'); return; }
+  if(!st.rpTitle){ alert('請選擇稱謂'); return; }
+  if(st.rpTitle==='自訂'&&!st.rpTitleCustom.trim()){ alert('請填寫自訂稱謂'); return; }
+  next();
+}
+
+function collectInfo(){
+  const gn=document.getElementById('inp-game')?.value?.trim()||'';
+  const sv=document.getElementById('inp-server')?.value||'';
+  const ct=document.getElementById('inp-contact')?.value?.trim()||'';
+  if(!gn||!sv||!ct){ alert('請填寫所有必填欄位（標有 * 號）'); return; }
+  st.gameName=gn; st.server=sv; st.contact=ct;
+  st.notes=document.getElementById('inp-notes')?.value||'';
+  next();
+}
+
+function submitRes(){
+  const day=schedule[st.date];
+  if(!day||!day.open){ alert('此日期已關閉預約，請重新選擇日期。'); st.step=1; render(); return; }
+  const availTimes=getAvailTimes(st.date);
+  if(!availTimes.includes(st.time)){ alert(`${st.time} 時段已不在開放預約的時段內，請重新選擇時段。`); st.step=1; st.time=''; render(); return; }
+  if(st.butler&&st.butler!=='none'){
+    if(!isButlerOnDutyAtTime(st.date,st.butler,st.time)){
+      const bName=BUTLERS.find(b=>b.id===st.butler)?.name||'該執事';
+      alert(`${bName} 在 ${st.time} 已無排班，請重新選擇執事。`);
+      st.step=3; st.butler=null; st.designated=false; render(); return;
+    }
+    const timeStatus=getButlerTimesStatus(st.date,st.butler);
+    const slotStatus=timeStatus.find(ts=>ts.time===st.time);
+    if(slotStatus?.blocked){
+      const bName=BUTLERS.find(b=>b.id===st.butler)?.name||'該執事';
+      alert(`${bName} 在 ${st.time} 已被預約，請重新選擇執事或時段。`);
+      st.step=3; st.butler=null; st.designated=false; render(); return;
+    }
+  }
+  // 攝影師驗證
+  if(st.services.includes('photo')){
+    if(!st.photographer){ alert('請選擇攝影師。'); st.step=getSteps().findIndex(s=>s.id==='photographer'); render(); return; }
+    if(!isPhotographerAvailable(st.date, st.photographer, st.time)){
+      const pName=PHOTOGRAPHERS.find(p=>p.id===st.photographer)?.name||'該攝影師';
+      alert(`${pName} 在 ${st.time} 已無法預約，請重新選擇。`);
+      st.step=getSteps().findIndex(s=>s.id==='photographer'); st.photographer=null; render(); return;
+    }
+  }
+  const res={
+    id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),
+    date:st.date, time:st.time,
+    services:[...st.services],
+    designated:st.designated, butler:st.butler,
+    photographer:st.photographer||null,
+    rp:st.rp, rpTitle:st.rpTitle, rpTitleCustom:st.rpTitleCustom, rpNote:st.rpNote,
+    gameName:st.gameName, server:st.server, contact:st.contact, notes:st.notes,
+    total:calcTotal(),
+    status:'new',
+    createdAt:new Date().toISOString(),
+  };
+  reservations.push(res);
+  saveReservations();
+  renderSuccess(st.gameName);
+}
+
+function resetForm(){
+  st={step:0,agreed:false,date:'',time:'',services:[],designated:false,butler:null,
+      photographer:null,rp:'',rpTitle:'',rpTitleCustom:'',rpNote:'',gameName:'',server:'',contact:'',notes:''};
+  render();
+}
+
+// ═══════════════════════════════════════════════
+//  工具
+// ═══════════════════════════════════════════════
+function chkSvg(){ return '<svg width="11" height="11" viewBox="0 0 11 11"><polyline points="1,5 4,8 10,2" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>'; }
+function escH(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ═══════════════════════════════════════════════
+//  初始化
+// ═══════════════════════════════════════════════
+loadData();
+render();
+</script>
+</body>
+</html>

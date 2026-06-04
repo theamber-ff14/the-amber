@@ -1,0 +1,1527 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Amber ⚙ 後台管理</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Noto+Serif+TC:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --a50:#FAEEDA;--a100:#FAC775;--a200:#EF9F27;--a400:#BA7517;--a600:#854F0B;--a800:#633806;--a900:#412402;
+  --bg:#1a1410;--bg2:#211a13;--bg3:#2a2118;--bg4:#160f0a;
+  --sur:rgba(250,238,218,0.05);--surh:rgba(250,238,218,0.09);
+  --bdr:rgba(250,199,117,0.18);--bdrs:rgba(250,199,117,0.42);
+  --tp:#faeeda;--ts:#c8a96e;--tm:rgba(250,238,218,0.42);
+  --gold:#EF9F27;--gl:#FAC775;
+  --ok-bg:rgba(99,152,34,0.12);--ok-c:#97C459;
+  --err-bg:rgba(162,45,45,0.12);--err-c:#F09595;
+  --warn-bg:rgba(239,159,39,0.1);--warn-c:#EF9F27;
+}
+html,body{background:var(--bg4);min-height:100vh;font-family:'Noto Serif TC','Cormorant Garamond',serif;color:var(--tp)}
+
+/* ── Layout ── */
+.layout{display:grid;grid-template-columns:220px 1fr;min-height:100vh}
+@media(max-width:700px){.layout{grid-template-columns:1fr}}
+
+/* ── Sidebar ── */
+.sidebar{background:var(--bg);border-right:1px solid var(--bdr);padding:0;display:flex;flex-direction:column}
+.sb-hdr{padding:1.75rem 1.5rem 1.25rem;border-bottom:1px solid var(--bdr)}
+.sb-hdr .orn{font-size:.8rem;letter-spacing:.4em;color:var(--gold);opacity:.6;margin-bottom:.4rem}
+.sb-hdr h2{font-family:'Cormorant Garamond',serif;font-size:1.3rem;font-weight:300;color:var(--gl);letter-spacing:.1em}
+.sb-hdr p{font-size:10px;color:var(--tm);margin-top:.2rem;letter-spacing:.06em}
+.sb-nav{padding:.75rem 0;flex:1}
+.sbnav-item{display:flex;align-items:center;gap:.65rem;padding:.7rem 1.5rem;font-size:13px;color:var(--ts);cursor:pointer;transition:all .2s;border-left:3px solid transparent;letter-spacing:.04em}
+.sbnav-item:hover{background:var(--sur);color:var(--tp);border-left-color:var(--bdr)}
+.sbnav-item.on{background:var(--surh);color:var(--gl);border-left-color:var(--gold)}
+.sbnav-item .ico{font-size:15px;flex-shrink:0;opacity:.75}
+.sbnav-item.on .ico{opacity:1}
+.sb-footer{padding:1rem 1.5rem;border-top:1px solid var(--bdr)}
+.logout-btn{display:flex;align-items:center;gap:.5rem;width:100%;padding:.55rem .75rem;background:transparent;border:1px solid var(--bdr);border-radius:4px;color:var(--ts);font-family:'Noto Serif TC',serif;font-size:12px;cursor:pointer;transition:all .2s;letter-spacing:.06em}
+.logout-btn:hover{border-color:var(--bdrs);color:var(--tp)}
+@media(max-width:700px){.sidebar{border-right:none;border-bottom:1px solid var(--bdr)}.layout{grid-template-rows:auto 1fr}}
+
+/* ── Main content ── */
+.content{background:var(--bg);padding:2rem;overflow-y:auto}
+.pg-title{font-family:'Cormorant Garamond',serif;font-size:1.6rem;font-weight:300;color:var(--gl);letter-spacing:.1em;margin-bottom:1.5rem;padding-bottom:.85rem;border-bottom:1px solid var(--bdr)}
+
+/* ── Cards ── */
+.card{background:var(--bg2);border:1px solid var(--bdr);border-radius:8px;padding:1.25rem 1.4rem;margin-bottom:1.25rem}
+.card h3{font-family:'Cormorant Garamond',serif;font-size:1.05rem;color:var(--gl);margin-bottom:1rem;letter-spacing:.07em;display:flex;align-items:center;gap:.6rem}
+.card h3::before{content:'✦';font-size:.65rem;color:var(--gold);opacity:.7}
+
+/* ── Calendar ── */
+.mnav{display:flex;align-items:center;justify-content:space-between;margin-bottom:.85rem}
+.mnav .mbtn{background:var(--bg3);border:1px solid var(--bdr);color:var(--ts);padding:.4rem .85rem;border-radius:4px;font-size:12px;cursor:pointer;font-family:'Noto Serif TC',serif;transition:all .2s}
+.mnav .mbtn:hover{border-color:var(--bdrs);color:var(--tp)}
+.mnav .mtit{font-size:14px;color:var(--tp);font-family:'Cormorant Garamond',serif;letter-spacing:.1em}
+.daygrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:.75rem}
+.dcel{padding:.45rem .2rem;text-align:center;border:1px solid var(--bdr);border-radius:4px;font-size:11.5px;cursor:pointer;background:var(--bg3);color:var(--tm);transition:all .2s;user-select:none;line-height:1.4}
+.dcel:hover:not(.hd):not(.past):not(.empty){border-color:var(--bdrs);color:var(--ts)}
+.dcel.hd{background:transparent;border:none;cursor:default;font-size:10px;color:var(--tm);pointer-events:none}
+.dcel.past{opacity:.28;pointer-events:none}
+.dcel.empty{visibility:hidden}
+.dcel.open{border-color:var(--a400);background:rgba(186,117,23,0.1);color:var(--gl)}
+.dcel.editing{border-color:var(--gold);background:rgba(239,159,39,0.18);color:var(--gold);font-weight:500}
+.open-dot{display:block;width:4px;height:4px;border-radius:50%;background:var(--gold);margin:.15rem auto 0;opacity:.7}
+
+/* ── Form controls ── */
+.flbl{display:block;font-size:11px;letter-spacing:.1em;color:var(--ts);margin-bottom:.4rem;text-transform:uppercase}
+.frow{margin-bottom:1.1rem}
+input[type="text"],input[type="password"],textarea,select{
+  width:100%;background:var(--bg3);border:1px solid var(--bdr);color:var(--tp);
+  padding:.6rem .85rem;border-radius:4px;font-size:13px;font-family:'Noto Serif TC',serif;
+  transition:border-color .2s;appearance:none;-webkit-appearance:none}
+input:focus,textarea:focus,select:focus{outline:none;border-color:var(--gold)}
+select option{background:#2a2118}
+textarea{resize:vertical;line-height:1.7}
+
+/* ── Toggle chips ── */
+.chips{display:flex;flex-wrap:wrap;gap:.4rem}
+.chip{padding:.3rem .8rem;border:1px solid var(--bdr);border-radius:20px;font-size:12px;cursor:pointer;background:var(--bg3);color:var(--ts);transition:all .2s;user-select:none}
+.chip:hover{border-color:var(--bdrs);color:var(--tp)}
+.chip.on{border-color:var(--gold);background:rgba(239,159,39,0.1);color:var(--gold)}
+
+/* ── Toggle switch ── */
+.toggle-row{display:flex;align-items:center;gap:.85rem;padding:.7rem .9rem;background:var(--bg3);border:1px solid var(--bdr);border-radius:4px;cursor:pointer;transition:all .2s;margin-bottom:.85rem}
+.toggle-row:hover{background:var(--surh)}
+.toggle-sw{width:36px;height:20px;border-radius:20px;background:rgba(250,199,117,0.15);border:1px solid var(--bdr);position:relative;flex-shrink:0;transition:all .3s}
+.toggle-sw.on{background:var(--a400);border-color:var(--a400)}
+.toggle-sw::after{content:'';width:14px;height:14px;border-radius:50%;background:#fff;position:absolute;top:2px;left:2px;transition:transform .25s;opacity:.6}
+.toggle-sw.on::after{transform:translateX(16px);opacity:1}
+.toggle-label{font-size:13px;color:var(--ts)}
+.toggle-sw.on+.toggle-label{color:var(--tp)}
+
+/* ── Buttons ── */
+.pbtn{padding:.65rem 1.6rem;background:linear-gradient(135deg,var(--a400),var(--a200));border:none;border-radius:4px;color:var(--a900);font-family:'Noto Serif TC',serif;font-size:13px;cursor:pointer;letter-spacing:.1em;transition:opacity .2s;font-weight:500}
+.pbtn:hover{opacity:.88}
+.sbtn{padding:.58rem 1.3rem;background:transparent;border:1px solid var(--bdr);border-radius:4px;color:var(--ts);font-family:'Noto Serif TC',serif;font-size:12.5px;cursor:pointer;letter-spacing:.06em;transition:all .2s}
+.sbtn:hover{border-color:var(--bdrs);color:var(--tp)}
+.dbtn{padding:.55rem 1.1rem;background:var(--err-bg);border:1px solid rgba(162,45,45,0.25);border-radius:4px;color:var(--err-c);font-family:'Noto Serif TC',serif;font-size:12px;cursor:pointer;transition:all .2s}
+.dbtn:hover{background:rgba(162,45,45,0.2)}
+.btn-row{display:flex;align-items:center;gap:.65rem;flex-wrap:wrap;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--bdr)}
+
+/* ── Toast ── */
+.toast{position:fixed;bottom:1.5rem;right:1.5rem;padding:.65rem 1.25rem;border-radius:6px;font-size:13px;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.ok{background:var(--ok-bg);color:var(--ok-c);border:1px solid rgba(99,152,34,0.25)}
+.toast.err{background:var(--err-bg);color:var(--err-c);border:1px solid rgba(162,45,45,0.25)}
+.toast.show{opacity:1}
+
+/* ── Badge ── */
+.badge{font-size:10px;padding:2px 7px;border-radius:20px;display:inline-block;margin-left:.4rem}
+.badge.ok{background:var(--ok-bg);color:var(--ok-c)}
+.badge.warn{background:var(--warn-bg);color:var(--warn-c)}
+
+/* ── Reservation list ── */
+.rcard{background:var(--bg3);border:1px solid var(--bdr);border-radius:6px;padding:.9rem 1.1rem;margin-bottom:.6rem}
+.rcard-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.4rem}
+.rcard-title{font-family:'Cormorant Garamond',serif;font-size:.95rem;color:var(--gl)}
+.rcard-date{font-size:11px;color:var(--tm)}
+.rcard-body{font-size:12px;color:var(--ts);line-height:1.9}
+.divl{width:100%;height:1px;background:linear-gradient(90deg,transparent,var(--bdrs),transparent);margin:.5rem 0}
+
+/* ── Stats ── */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.85rem;margin-bottom:1.5rem}
+.stat-card{background:var(--bg2);border:1px solid var(--bdr);border-radius:6px;padding:1rem 1.1rem}
+.stat-card .sv{font-family:'Cormorant Garamond',serif;font-size:1.8rem;font-weight:300;color:var(--gl);display:block}
+.stat-card .sk{font-size:10.5px;color:var(--tm);letter-spacing:.08em;margin-top:.2rem;display:block}
+
+/* ── Login ── */
+.login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--bg4)}
+.login-box{background:var(--bg2);border:1px solid var(--bdrs);border-radius:10px;padding:2.5rem;width:360px;max-width:90vw;text-align:center}
+.login-orn{font-size:.9rem;letter-spacing:.5em;color:var(--gold);opacity:.65;margin-bottom:.5rem}
+.login-title{font-family:'Cormorant Garamond',serif;font-size:1.75rem;font-weight:300;color:var(--gl);letter-spacing:.12em;margin-bottom:.35rem}
+.login-sub{font-size:11px;color:var(--tm);margin-bottom:1.75rem;letter-spacing:.07em}
+.login-err{font-size:12px;color:var(--err-c);min-height:1.4rem;margin-bottom:.5rem}
+
+/* ── Day editor panel ── */
+.day-editor{background:var(--bg2);border:1px solid var(--bdrs);border-radius:8px;padding:1.4rem;margin-top:1.1rem}
+.day-editor h3{font-family:'Cormorant Garamond',serif;font-size:1.1rem;color:var(--gl);margin-bottom:1.1rem;letter-spacing:.08em}
+.section-lbl{font-size:11px;color:var(--ts);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.5rem;display:block}
+
+/* ── Filter bar ── */
+.filterbar{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem;align-items:center}
+.filterbar select{width:auto;padding:.4rem .7rem;font-size:12px}
+.filterbar input[type="text"]{width:auto;flex:1;min-width:120px;padding:.4rem .7rem;font-size:12px}
+
+.empty-state{text-align:center;padding:2.5rem;color:var(--tm);font-size:13px;line-height:2}
+.fade{animation:fi .3s ease}
+@keyframes fi{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── Reservation status badges ── */
+.res-status{font-size:11px;padding:3px 10px;border-radius:20px;display:inline-block;font-weight:500;letter-spacing:.04em;cursor:pointer}
+.res-status.new{background:rgba(88,101,242,0.15);color:#8B9EFF}
+.res-status.confirmed{background:rgba(99,152,34,0.15);color:#97C459}
+.res-status.processing{background:rgba(239,159,39,0.15);color:#EF9F27}
+.res-status.cancelled{background:rgba(162,45,45,0.15);color:#F09595}
+
+/* ── Photo upload ── */
+.photo-upload-box{border:2px dashed var(--bdr);border-radius:6px;padding:1rem;text-align:center;cursor:pointer;transition:all .2s;background:var(--bg3);position:relative;overflow:hidden}
+.photo-upload-box:hover{border-color:var(--gold)}
+.photo-upload-box input[type="file"]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.photo-preview{width:72px;height:72px;border-radius:50%;object-fit:cover;border:2px solid var(--bdrs);display:block;margin:0 auto .5rem}
+.photo-hint{font-size:11px;color:var(--tm)}
+
+/* ── Butler avatar in list (admin) ── */
+.badm-av{width:44px;height:44px;border-radius:50%;background:var(--bg3);border:1px solid var(--bdr);display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:1.1rem;color:var(--gold);flex-shrink:0;overflow:hidden}
+.badm-av img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+</style>
+</head>
+<body>
+
+<!-- ══ LOGIN ══ -->
+<div id="login-screen" class="login-wrap">
+  <div class="login-box">
+    <div class="login-orn">✦ ✦ ✦</div>
+    <div class="login-title">The Amber</div>
+    <div class="login-sub">後台管理系統　管理員專用</div>
+    <div class="frow" style="text-align:left">
+      <label class="flbl">管理員密碼</label>
+      <input type="password" id="pw-input" placeholder="請輸入密碼" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <div class="login-err" id="login-err"></div>
+    <button class="pbtn" style="width:100%" onclick="doLogin()">登入後台</button>
+  </div>
+</div>
+
+<!-- ══ MAIN APP ══ -->
+<div id="main-app" class="layout" style="display:none">
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sb-hdr">
+      <div class="orn">✦ T H E  A M B E R ✦</div>
+      <h2>後台管理</h2>
+      <p>琥珀執事咖啡廳</p>
+    </div>
+    <nav class="sb-nav">
+      <div class="sbnav-item on" onclick="switchView('dashboard')" id="nav-dashboard">
+        <span class="ico">◈</span> 總覽
+      </div>
+      <div class="sbnav-item" onclick="switchView('schedule')" id="nav-schedule">
+        <span class="ico">◷</span> 排班設定
+      </div>
+      <div class="sbnav-item" onclick="switchView('reservations')" id="nav-reservations">
+        <span class="ico">◻</span> 預約紀錄
+      </div>
+      <div class="sbnav-item" onclick="switchView('butlers')" id="nav-butlers">
+        <span class="ico">◈</span> 執事管理
+      </div>
+      <div class="sbnav-item" onclick="switchView('photographers')" id="nav-photographers">
+        <span class="ico">◈</span> 攝影師管理
+      </div>
+    </nav>
+    <div class="sb-footer">
+      <button class="logout-btn" onclick="doLogout()">⎋ 登出</button>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="content" id="content"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  CONFIG（與前台 reservation.html 保持一致）
+// ═══════════════════════════════════════════════
+const ADMIN_PW = 'amber2024'; // ← 可修改密碼
+const STORAGE_KEY_SCHEDULE = 'amber_schedule';
+const STORAGE_KEY_RES = 'amber_reservations';
+const STORAGE_KEY_BUTLERS = 'amber_butlers';
+const STORAGE_KEY_PHOTOGRAPHERS = 'amber_photographers';
+
+const BUTLERS_DEFAULT = [
+  {id:'b1',name:'亞修',initial:'亞',tag:'執事長'},
+  {id:'b2',name:'萊昂',initial:'萊',tag:'資深執事'},
+  {id:'b3',name:'艾倫',initial:'艾',tag:'執事'},
+  {id:'b4',name:'克勞德',initial:'克',tag:'執事'},
+  {id:'b5',name:'伊森',initial:'伊',tag:'見習執事'},
+];
+const PHOTOGRAPHERS_DEFAULT = [
+  {id:'p1',name:'Hinako',initial:'H',price:120000,portfolioUrl:'https://hinakoff14tc.carrd.co/',photo:''},
+  {id:'p2',name:'煙鏡',initial:'煙',price:20000,portfolioUrl:'https://rainy-powder-d75.notion.site/mirrorsmoke?source=copy_link',photo:''},
+];
+
+let BUTLERS = [...BUTLERS_DEFAULT];
+let PHOTOGRAPHERS = [...PHOTOGRAPHERS_DEFAULT];
+
+const SERVICES = [
+  {id:'afternoon',name:'宅邸午茶',price:0},
+  {id:'call30',name:'優雅呼喚',price:60000,extra:40000},
+  {id:'private',name:'專屬時光',price:40000},
+  {id:'photo',name:'衷心之影',price:0},
+];
+
+// ═══════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════
+let schedule = {};
+let reservations = [];
+let currentView = 'dashboard';
+let calYear = new Date().getFullYear();
+let calMonth = new Date().getMonth();
+let editDay = null;
+let editDayDraft = null;
+let butlerEditId = null;
+let photographerEditId = null; // 攝影師編輯狀態
+
+// ═══════════════════════════════════════════════
+//  STORAGE
+// ═══════════════════════════════════════════════
+function loadData(){
+  try{ const v=localStorage.getItem(STORAGE_KEY_SCHEDULE); if(v) schedule=JSON.parse(v); }catch(e){}
+  try{ const v=localStorage.getItem(STORAGE_KEY_RES); if(v) reservations=JSON.parse(v); }catch(e){}
+  try{
+    const v=localStorage.getItem(STORAGE_KEY_BUTLERS);
+    if(v) BUTLERS=JSON.parse(v);
+    else { BUTLERS=[...BUTLERS_DEFAULT]; saveButlers(); }
+  }catch(e){ BUTLERS=[...BUTLERS_DEFAULT]; }
+  try{
+    const v=localStorage.getItem(STORAGE_KEY_PHOTOGRAPHERS);
+    if(v) PHOTOGRAPHERS=JSON.parse(v);
+    else { PHOTOGRAPHERS=[...PHOTOGRAPHERS_DEFAULT]; savePhotographers(); }
+  }catch(e){ PHOTOGRAPHERS=[...PHOTOGRAPHERS_DEFAULT]; }
+}
+function saveSchedule(){ try{ localStorage.setItem(STORAGE_KEY_SCHEDULE, JSON.stringify(schedule)); return true; }catch(e){ return false; } }
+function saveReservations(){ try{ localStorage.setItem(STORAGE_KEY_RES, JSON.stringify(reservations)); return true; }catch(e){ return false; } }
+function saveButlers(){ try{ localStorage.setItem(STORAGE_KEY_BUTLERS, JSON.stringify(BUTLERS)); return true; }catch(e){ return false; } }
+function savePhotographers(){ try{ localStorage.setItem(STORAGE_KEY_PHOTOGRAPHERS, JSON.stringify(PHOTOGRAPHERS)); return true; }catch(e){ return false; } }
+
+// ═══════════════════════════════════════════════
+//  AUTH
+// ═══════════════════════════════════════════════
+function doLogin(){
+  const pw = document.getElementById('pw-input').value;
+  if(pw === ADMIN_PW){
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('main-app').style.display='grid';
+    renderView('dashboard');
+  } else {
+    document.getElementById('login-err').textContent='密碼錯誤，請重試。';
+  }
+}
+function doLogout(){
+  document.getElementById('main-app').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('pw-input').value='';
+  document.getElementById('login-err').textContent='';
+}
+
+// ═══════════════════════════════════════════════
+//  NAVIGATION
+// ═══════════════════════════════════════════════
+function switchView(v){
+  currentView=v;
+  editDay=null; editDayDraft=null;
+  butlerEditId=null; photographerEditId=null;
+  document.querySelectorAll('.sbnav-item').forEach(el=>el.classList.remove('on'));
+  document.getElementById('nav-'+v)?.classList.add('on');
+  renderView(v);
+}
+function renderView(v){
+  const c=document.getElementById('content');
+  c.className='content fade';
+  if(v==='dashboard') c.innerHTML=renderDashboard();
+  else if(v==='schedule') c.innerHTML=renderSchedule();
+  else if(v==='reservations') c.innerHTML=renderReservations();
+  else if(v==='butlers') c.innerHTML=renderButlers();
+  else if(v==='photographers') c.innerHTML=renderPhotographers();
+}
+
+// ═══════════════════════════════════════════════
+//  DASHBOARD
+// ═══════════════════════════════════════════════
+function renderDashboard(){
+  const today=new Date().toISOString().split('T')[0];
+  const activeRes=reservations.filter(r=>(r.status||'new')!=='cancelled');
+  const upcoming=activeRes.filter(r=>r.date>=today).sort((a,b)=>a.date.localeCompare(b.date)||a.time.localeCompare(b.time));
+  const openCount=Object.values(schedule).filter(d=>d.open).length;
+  const totalGil=activeRes.reduce((s,r)=>s+r.total,0);
+  const todayRes=reservations.filter(r=>r.date===today);
+  return `
+    <div class="pg-title">總覽</div>
+    <div class="stats-grid">
+      <div class="stat-card"><span class="sv">${activeRes.length}</span><span class="sk">有效預約筆數</span></div>
+      <div class="stat-card"><span class="sv">${upcoming.length}</span><span class="sk">即將到來的預約</span></div>
+      <div class="stat-card"><span class="sv">${openCount}</span><span class="sk">已開放日期數</span></div>
+      <div class="stat-card"><span class="sv">${(totalGil/10000).toFixed(1)}w</span><span class="sk">累計 Gil（萬）</span></div>
+    </div>
+    <div class="card">
+      <h3>今日預約 (${today})</h3>
+      ${todayRes.length===0?
+        `<div class="empty-state" style="padding:1rem;">今日尚無預約</div>`:
+        todayRes.sort((a,b)=>a.time.localeCompare(b.time)).map(r=>resCardHtml(r)).join('')
+      }
+    </div>
+    <div class="card">
+      <h3>近期預約（未來）</h3>
+      ${upcoming.length===0?
+        `<div class="empty-state" style="padding:1rem;">目前無即將到來的預約</div>`:
+        upcoming.slice(0,5).map(r=>resCardHtml(r)).join('')+
+        (upcoming.length>5?`<p style="font-size:11px;color:var(--tm);text-align:center;margin-top:.5rem;">還有 ${upcoming.length-5} 筆，請至「預約紀錄」查看</p>`:'')
+      }
+    </div>
+  `;
+}
+
+// ═══════════════════════════════════════════════
+//  SCHEDULE
+// ═══════════════════════════════════════════════
+function renderSchedule(){
+  const today=new Date().toISOString().split('T')[0];
+  const first=new Date(calYear,calMonth,1).getDay();
+  const days=new Date(calYear,calMonth+1,0).getDate();
+  const weekdays=['日','一','二','三','四','五','六'];
+  
+  let cells=weekdays.map(w=>`<div class="dcel hd">${w}</div>`).join('');
+  for(let i=0;i<first;i++) cells+=`<div class="dcel empty"></div>`;
+  for(let d=1;d<=days;d++){
+    const ds=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isOpen=schedule[ds]?.open;
+    const isPast=ds<today;
+    const isEditing=editDay===ds;
+    const resCount=reservations.filter(r=>r.date===ds).length;
+    cells+=`<div class="dcel${isOpen?' open':''}${isPast?' past':''}${isEditing?' editing':''}" onclick="startEditDay('${ds}')">
+      ${d}
+      ${isOpen?`<span class="open-dot"></span>`:''}
+      ${isOpen&&resCount>0?`<span style="font-size:8px;color:var(--a100);display:block;">${resCount}筆</span>`:''}
+    </div>`;
+  }
+
+  let editorHtml='';
+  if(editDay && editDayDraft){
+    const d=editDayDraft;
+    const allTimes=[];
+    for(let h=18;h<=23;h++) for(let m=0;m<60;m+=30) allTimes.push(`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`);
+    allTimes.push('24:00');
+    
+    const dayRes=reservations.filter(r=>r.date===editDay && (r.status||'new')!=='cancelled');
+
+    // 計算整體時段的鎖定格：預約整點 + XX:30緩衝 + 下一個整點（服務結束邊界）
+    const lockedGlobalTimes=new Set();
+    dayRes.forEach(r=>{
+      const [hh]=r.time.split(':');
+      const nextHH=String(parseInt(hh)+1).padStart(2,'0');
+      lockedGlobalTimes.add(r.time);          // 21:00
+      lockedGlobalTimes.add(`${hh}:30`);      // 21:30
+      lockedGlobalTimes.add(`${nextHH}:00`);  // 22:00（服務/緩衝結束邊界）
+    });
+
+    // 計算各執事的鎖定格（同上邏輯）
+    const lockedButlerTimes={};
+    dayRes.filter(r=>r.butler&&r.butler!=='none').forEach(r=>{
+      if(!lockedButlerTimes[r.butler]) lockedButlerTimes[r.butler]=new Set();
+      const [hh]=r.time.split(':');
+      const nextHH=String(parseInt(hh)+1).padStart(2,'0');
+      lockedButlerTimes[r.butler].add(r.time);
+      lockedButlerTimes[r.butler].add(`${hh}:30`);
+      lockedButlerTimes[r.butler].add(`${nextHH}:00`);
+    });
+
+    // 計算各攝影師的鎖定格
+    const lockedPhotographerTimes={};
+    dayRes.filter(r=>r.photographer).forEach(r=>{
+      if(!lockedPhotographerTimes[r.photographer]) lockedPhotographerTimes[r.photographer]=new Set();
+      const [hh]=r.time.split(':');
+      const nextHH=String(parseInt(hh)+1).padStart(2,'0');
+      lockedPhotographerTimes[r.photographer].add(r.time);
+      lockedPhotographerTimes[r.photographer].add(`${hh}:30`);
+      lockedPhotographerTimes[r.photographer].add(`${nextHH}:00`);
+    });
+
+    const resHtml=dayRes.length>0?
+      `<div style="margin-top:1rem;">
+        <span class="section-lbl">此日預約紀錄（${dayRes.length}筆）</span>
+        ${dayRes.sort((a,b)=>a.time.localeCompare(b.time)).map(r=>resCardHtml(r)).join('')}
+      </div>`:'';
+
+    editorHtml=`
+      <div class="day-editor">
+        <h3>${editDay}　排班設定</h3>
+        <div class="toggle-row" onclick="toggleDraftOpen()">
+          <div class="toggle-sw${d.open?' on':''}"></div>
+          <span class="toggle-label">${d.open?'開放此日預約':'此日不開放'}</span>
+        </div>
+        <div id="day-detail-section" style="${d.open?'':'display:none'}">
+          <div class="frow">
+            <label class="flbl">場次標籤（選填）</label>
+            <input type="text" id="day-label-input" placeholder="例：五月第一場、限定夜場..." value="${escH(d.label||'')}">
+          </div>
+          <div class="frow">
+            <span class="section-lbl">整體營業時段 <span style="color:var(--tm);font-size:10px;">（這天對外開放的完整時段）</span></span>
+            ${lockedGlobalTimes.size>0?`<div style="font-size:11px;color:var(--gold);margin-bottom:.5rem;">🔒 金色鎖定格為有效預約所需時段，不可移除</div>`:''}
+            <div class="chips" id="time-chips">
+              ${allTimes.map(t=>{
+                const locked=lockedGlobalTimes.has(t);
+                return `<div class="chip${(d.times||[]).includes(t)?' on':''}${locked?' locked-chip':''}"
+                  onclick="${locked ? `showLockedMsg('${t}','整體時段')` : `toggleDraftTime('${t}',this)`}"
+                  title="${locked?'此時段有有效預約，不可移除':''}"
+                  style="${locked?'border-color:var(--gold);opacity:0.6;cursor:not-allowed;':''}">${t}${locked?'🔒':''}</div>`;
+              }).join('')}
+            </div>
+          </div>
+          <div class="frow">
+            <span class="section-lbl">執事個別排班時段 <span style="color:var(--tm);font-size:10px;">（每位執事各自勾選可服務的時段）</span></span>
+            <div id="butler-shifts-section">
+              ${BUTLERS.map(b=>{
+                const bShifts = (d.butlerShifts||{})[b.id] || [];
+                const isOnDuty = bShifts.length > 0;
+                const bLocked = lockedButlerTimes[b.id] || new Set();
+                return `<div style="background:var(--bg3);border:1px solid var(--bdr);border-radius:6px;padding:.75rem 1rem;margin-bottom:.5rem;">
+                  <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:${isOnDuty?'.6rem':'0'}">
+                    <div class="toggle-sw${isOnDuty?' on':''}" id="bsw-${b.id}" onclick="toggleButlerOnDuty('${b.id}',this)" style="cursor:pointer;flex-shrink:0;"></div>
+                    <span style="font-size:13px;color:${isOnDuty?'var(--tp)':'var(--tm)'};">${escH(b.name)}</span>
+                    <span style="font-size:10px;color:var(--tm);">${escH(b.tag)}</span>
+                    ${bLocked.size>0?`<span style="font-size:10px;color:var(--gold);">🔒 有預約鎖定</span>`:''}
+                  </div>
+                  <div id="bshift-${b.id}" style="display:${isOnDuty?'flex':'none'};flex-wrap:wrap;gap:.35rem;padding-left:.5rem;">
+                    ${(d.times||[]).length===0
+                      ? `<span style="font-size:11px;color:var(--tm);">請先設定整體營業時段</span>`
+                      : (d.times||[]).map(t=>{
+                          const locked=bLocked.has(t);
+                          return `<div class="chip${bShifts.includes(t)?' on':''}${locked?' locked-chip':''}"
+                            onclick="${locked ? `showLockedMsg('${t}','${escH(b.name)}排班')` : `toggleButlerShift('${b.id}','${t}',this)`}"
+                            title="${locked?'此時段有有效預約，不可移除':''}"
+                            style="${locked?'border-color:var(--gold);opacity:0.6;cursor:not-allowed;':''}">${t}${locked?'🔒':''}</div>`;
+                        }).join('')
+                    }
+                  </div>
+                </div>`;
+              }).join('')}
+            </div>
+          </div>
+          <div class="frow">
+            <span class="section-lbl">攝影師個別排班時段 <span style="color:var(--tm);font-size:10px;">（每位攝影師各自勾選可服務的時段）</span></span>
+            <div id="photographer-shifts-section">
+              ${PHOTOGRAPHERS.map(p=>{
+                const pShifts = (d.photographerShifts||{})[p.id] || [];
+                const isOnDuty = pShifts.length > 0;
+                const pLocked = lockedPhotographerTimes[p.id] || new Set();
+                return `<div style="background:var(--bg3);border:1px solid var(--bdr);border-radius:6px;padding:.75rem 1rem;margin-bottom:.5rem;">
+                  <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:${isOnDuty?'.6rem':'0'}">
+                    <div class="toggle-sw${isOnDuty?' on':''}" id="psw-${p.id}" onclick="togglePhotographerOnDuty('${p.id}',this)" style="cursor:pointer;flex-shrink:0;"></div>
+                    <span style="font-size:13px;color:${isOnDuty?'var(--tp)':'var(--tm)'};">${escH(p.name)}</span>
+                    <span style="font-size:10px;color:var(--gold);">${p.price.toLocaleString()} Gil</span>
+                    ${pLocked.size>0?`<span style="font-size:10px;color:var(--gold);">🔒 有預約鎖定</span>`:''}
+                  </div>
+                  <div id="pshift-${p.id}" style="display:${isOnDuty?'flex':'none'};flex-wrap:wrap;gap:.35rem;padding-left:.5rem;">
+                    ${(d.times||[]).length===0
+                      ? `<span style="font-size:11px;color:var(--tm);">請先設定整體營業時段</span>`
+                      : (d.times||[]).map(t=>{
+                          const locked=pLocked.has(t);
+                          return `<div class="chip${pShifts.includes(t)?' on':''}${locked?' locked-chip':''}"
+                            onclick="${locked?`showLockedMsg('${t}','${escH(p.name)}排班')`:`togglePhotographerShift('${p.id}','${t}',this)`}"
+                            title="${locked?'此時段有有效預約，不可移除':''}"
+                            style="${locked?'border-color:var(--gold);opacity:0.6;cursor:not-allowed;':''}">${t}${locked?'🔒':''}</div>`;
+                        }).join('')
+                    }
+                  </div>
+                </div>`;
+              }).join('')}
+            </div>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="pbtn" onclick="saveDaySchedule()">儲存此日設定</button>
+          <button class="sbtn" onclick="clearEditDay()">取消</button>
+          ${schedule[editDay]?.open?`<button class="dbtn" onclick="deleteDaySchedule()">清除此日</button>`:''}
+        </div>
+        ${resHtml}
+      </div>
+    `;
+  }
+
+  return `
+    <div class="pg-title">排班設定</div>
+    <div class="card">
+      <h3>月曆</h3>
+      <div class="mnav">
+        <button class="mbtn" onclick="changeMonth(-1)">‹ 上個月</button>
+        <span class="mtit">${calYear} 年 ${calMonth+1} 月</span>
+        <button class="mbtn" onclick="changeMonth(1)">下個月 ›</button>
+      </div>
+      <div class="daygrid">${cells}</div>
+      <p style="font-size:11px;color:var(--tm);">
+        ✦ 金框日期 = 已開放預約　✦ 點擊日期設定該日排班
+      </p>
+    </div>
+    ${editorHtml}
+    <div class="card" style="margin-top:1rem;">
+      <h3>本月已開放日期</h3>
+      ${renderMonthSummary()}
+    </div>
+  `;
+}
+
+function renderMonthSummary(){
+  const prefix=`${calYear}-${String(calMonth+1).padStart(2,'0')}`;
+  const openDays=Object.keys(schedule).filter(d=>d.startsWith(prefix)&&schedule[d]?.open).sort();
+  if(!openDays.length) return `<div class="empty-state" style="padding:.75rem;">本月尚無開放日期</div>`;
+  return openDays.map(d=>{
+    const day=schedule[d];
+    const resCount=reservations.filter(r=>r.date===d).length;
+    const onDutyCount=Object.keys(day.butlerShifts||{}).filter(bid=>(day.butlerShifts[bid]||[]).length>0).length;
+    return `<div style="padding:.55rem 0;border-bottom:1px solid var(--bdr);font-size:13px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span style="color:var(--tp);">${d}${day.label?` <span style="font-size:11px;color:var(--ts);">${escH(day.label)}</span>`:''}</span>
+        <span style="color:var(--tm);font-size:12px;">${(day.times||[]).length}個時段　${onDutyCount}位執事值班　<span style="color:var(--gold)">${resCount}筆預約</span></span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function startEditDay(ds){
+  editDay=ds;
+  const existing=schedule[ds]||{open:false,times:[],butlerShifts:{},photographerShifts:{},label:''};
+  let butlerShifts=existing.butlerShifts?{...existing.butlerShifts}:{};
+  let photographerShifts=existing.photographerShifts?{...existing.photographerShifts}:{};
+  if(!existing.butlerShifts&&existing.butlers){
+    existing.butlers.forEach(bid=>{ butlerShifts[bid]=[...(existing.times||[])]; });
+  }
+  editDayDraft={...existing, times:[...(existing.times||[])], butlerShifts, photographerShifts};
+  renderView('schedule');
+}
+function clearEditDay(){ editDay=null; editDayDraft=null; renderView('schedule'); }
+function changeMonth(d){
+  calMonth+=d;
+  if(calMonth<0){calMonth=11;calYear--;}
+  if(calMonth>11){calMonth=0;calYear++;}
+  editDay=null; editDayDraft=null;
+  renderView('schedule');
+}
+function toggleDraftOpen(){
+  if(!editDayDraft) return;
+  editDayDraft.open=!editDayDraft.open;
+  const sw=document.querySelector('.toggle-sw');
+  const lbl=document.querySelector('.toggle-label');
+  const detail=document.getElementById('day-detail-section');
+  if(sw){ sw.classList.toggle('on',editDayDraft.open); }
+  if(lbl){ lbl.textContent=editDayDraft.open?'開放此日預約':'此日不開放'; }
+  if(detail){ detail.style.display=editDayDraft.open?'':'none'; }
+}
+function showLockedMsg(t, label){
+  const existing=document.getElementById('locked-msg-bar');
+  if(existing) existing.remove();
+  const detail=document.getElementById('day-detail-section');
+  if(!detail) return;
+  const bar=document.createElement('div');
+  bar.id='locked-msg-bar';
+  bar.style.cssText='padding:.5rem .9rem;background:rgba(239,159,39,0.1);border:1px solid rgba(239,159,39,0.35);border-radius:4px;font-size:12px;color:var(--gold);margin-bottom:.5rem;display:flex;justify-content:space-between;align-items:center;';
+  bar.innerHTML=`<span>🔒 ${t} 為有效預約的${label}，無法移除</span><span onclick="this.parentElement.remove()" style="cursor:pointer;opacity:.6;">✕</span>`;
+  detail.insertAdjacentElement('afterbegin', bar);
+  setTimeout(()=>bar.remove(), 3000);
+}
+
+function toggleDraftTime(t, el){
+  if(!editDayDraft) return;
+  // 檢查是否為鎖定時段（有效預約的整點或緩衝）
+  const activeRes=reservations.filter(r=>r.date===editDay && (r.status||'new')!=='cancelled');
+  const lockedTimes=new Set();
+  activeRes.forEach(r=>{
+    const [hh]=r.time.split(':');
+    const nextHH=String(parseInt(hh)+1).padStart(2,'0');
+    lockedTimes.add(r.time);
+    lockedTimes.add(`${hh}:30`);
+    lockedTimes.add(`${nextHH}:00`);
+  });
+  if(lockedTimes.has(t)){
+    showLockedMsg(t,'整體時段');
+    return;
+  }
+  editDayDraft.times=editDayDraft.times||[];
+  const i=editDayDraft.times.indexOf(t);
+  if(i===-1) editDayDraft.times.push(t); else editDayDraft.times.splice(i,1);
+  editDayDraft.times.sort();
+  el.classList.toggle('on');
+  refreshButlerShiftChips();
+}
+
+function toggleButlerShift(bid, t, el){
+  if(!editDayDraft) return;
+  // 檢查是否為該執事的鎖定時段
+  const activeRes=reservations.filter(r=>r.date===editDay && r.butler===bid && (r.status||'new')!=='cancelled');
+  const lockedTimes=new Set();
+  activeRes.forEach(r=>{
+    const [hh]=r.time.split(':');
+    const nextHH=String(parseInt(hh)+1).padStart(2,'0');
+    lockedTimes.add(r.time);
+    lockedTimes.add(`${hh}:30`);
+    lockedTimes.add(`${nextHH}:00`);
+  });
+  if(lockedTimes.has(t)){
+    const bName=BUTLERS.find(b=>b.id===bid)?.name||'該執事';
+    showLockedMsg(t,`${bName}排班`);
+    return;
+  }
+  editDayDraft.butlerShifts=editDayDraft.butlerShifts||{};
+  editDayDraft.butlerShifts[bid]=editDayDraft.butlerShifts[bid]||[];
+  const arr=editDayDraft.butlerShifts[bid];
+  const i=arr.indexOf(t);
+  if(i===-1) arr.push(t); else arr.splice(i,1);
+  arr.sort();
+  el.classList.toggle('on');
+}
+function togglePhotographerOnDuty(pid, swEl){
+  if(!editDayDraft) return;
+  editDayDraft.photographerShifts=editDayDraft.photographerShifts||{};
+  const isNowOn=!swEl.classList.contains('on');
+  swEl.classList.toggle('on', isNowOn);
+  const nameEl=swEl.nextElementSibling;
+  if(nameEl) nameEl.style.color=isNowOn?'var(--tp)':'var(--tm)';
+  const shiftDiv=document.getElementById('pshift-'+pid);
+  if(shiftDiv){
+    shiftDiv.style.display=isNowOn?'flex':'none';
+    if(isNowOn){
+      editDayDraft.photographerShifts[pid]=[...(editDayDraft.times||[])];
+      shiftDiv.querySelectorAll('.chip').forEach(c=>c.classList.add('on'));
+    } else {
+      delete editDayDraft.photographerShifts[pid];
+    }
+  }
+}
+function togglePhotographerShift(pid, t, el){
+  if(!editDayDraft) return;
+  const activeRes=reservations.filter(r=>r.date===editDay && r.photographer===pid && (r.status||'new')!=='cancelled');
+  const lockedTimes=new Set();
+  activeRes.forEach(r=>{
+    const [hh]=r.time.split(':');
+    const nextHH=String(parseInt(hh)+1).padStart(2,'0');
+    lockedTimes.add(r.time); lockedTimes.add(`${hh}:30`); lockedTimes.add(`${nextHH}:00`);
+  });
+  if(lockedTimes.has(t)){
+    const pName=PHOTOGRAPHERS.find(p=>p.id===pid)?.name||'該攝影師';
+    showLockedMsg(t,`${pName}排班`); return;
+  }
+  editDayDraft.photographerShifts=editDayDraft.photographerShifts||{};
+  editDayDraft.photographerShifts[pid]=editDayDraft.photographerShifts[pid]||[];
+  const arr=editDayDraft.photographerShifts[pid];
+  const i=arr.indexOf(t);
+  if(i===-1) arr.push(t); else arr.splice(i,1);
+  arr.sort();
+  el.classList.toggle('on');
+}
+function toggleButlerOnDuty(bid, swEl){
+  if(!editDayDraft) return;
+  const isNowOn = !swEl.classList.contains('on');
+  swEl.classList.toggle('on', isNowOn);
+  const nameEl = swEl.nextElementSibling;
+  if(nameEl) nameEl.style.color = isNowOn ? 'var(--tp)' : 'var(--tm)';
+  const shiftDiv = document.getElementById('bshift-'+bid);
+  if(shiftDiv){
+    shiftDiv.style.display = isNowOn ? 'flex' : 'none';
+    if(isNowOn){
+      editDayDraft.butlerShifts[bid] = [...(editDayDraft.times||[])];
+      shiftDiv.querySelectorAll('.chip').forEach(c=>c.classList.add('on'));
+    } else {
+      delete editDayDraft.butlerShifts[bid];
+    }
+  }
+}
+// 整體時段變動後，重繪各執事的時段選項
+function refreshButlerShiftChips(){
+  const times=editDayDraft?.times||[];
+  BUTLERS.forEach(b=>{
+    const shiftDiv=document.getElementById('bshift-'+b.id);
+    if(!shiftDiv||shiftDiv.style.display==='none') return;
+    // 移除不在整體時段的已選項
+    const bShifts=(editDayDraft.butlerShifts||{})[b.id]||[];
+    const filtered=bShifts.filter(t=>times.includes(t));
+    if(editDayDraft.butlerShifts) editDayDraft.butlerShifts[b.id]=filtered;
+    // 重繪
+    if(times.length===0){
+      shiftDiv.innerHTML=`<span style="font-size:11px;color:var(--tm);">請先設定整體營業時段</span>`;
+    } else {
+      shiftDiv.innerHTML=times.map(t=>
+        `<div class="chip${filtered.includes(t)?' on':''}" onclick="toggleButlerShift('${b.id}','${t}',this)">${t}</div>`
+      ).join('');
+    }
+  });
+}
+function saveDaySchedule(){
+  if(!editDay||!editDayDraft) return;
+  const labelInput=document.getElementById('day-label-input');
+  if(labelInput) editDayDraft.label=labelInput.value;
+
+  // ── 防呆：檢查現有預約是否與新排班衝突 ──
+  const activeRes = reservations.filter(r =>
+    r.date === editDay && (r.status||'new') !== 'cancelled'
+  );
+  const conflicts = [];
+  const newTimes = editDayDraft.times || [];
+  const newShifts = editDayDraft.butlerShifts || {};
+
+  // 若整天被關閉
+  if(!editDayDraft.open && activeRes.length>0){
+    conflicts.push(`此日共有 ${activeRes.length} 筆有效預約，關閉後客人的預約時段將失效`);
+  }
+
+  if(editDayDraft.open){
+    activeRes.forEach(r => {
+      const svcNames = (r.services||[]).map(sid => SERVICES.find(s=>s.id===sid)?.name||sid).join('、');
+
+      // 1. 整體營業時段已不包含此預約整點
+      if(!newTimes.includes(r.time)){
+        conflicts.push(`・${r.time} ${escH(r.gameName)}（${svcNames}）─ 此時段已從營業時段移除`);
+        return;
+      }
+
+      // 2. 預約整點對應的 XX:30 緩衝 + 下一個整點邊界 必須保留在整體營業時段
+      const [hh] = r.time.split(':');
+      const bufferSlot = `${hh}:30`;
+      const boundarySlot = `${String(parseInt(hh)+1).padStart(2,'0')}:00`;
+      if(!newTimes.includes(bufferSlot)){
+        conflicts.push(`・${r.time} ${escH(r.gameName)}（${svcNames}）─ 緩衝時段 ${bufferSlot} 已從營業時段移除`);
+      }
+      if(!newTimes.includes(boundarySlot)){
+        conflicts.push(`・${r.time} ${escH(r.gameName)}（${svcNames}）─ 服務結束邊界 ${boundarySlot} 已從營業時段移除`);
+      }
+
+      // 3. 有指名執事：執事在此整點需有排班
+      if(r.butler && r.butler !== 'none'){
+        const bName = BUTLERS.find(b=>b.id===r.butler)?.name || r.butler;
+        const butlerShift = newShifts[r.butler] || [];
+
+        if(!butlerShift.includes(r.time)){
+          conflicts.push(`・${r.time} ${escH(r.gameName)}（${svcNames}）─ 執事${bName}在 ${r.time} 已無排班`);
+        }
+        if(!butlerShift.includes(bufferSlot)){
+          conflicts.push(`・${r.time} ${escH(r.gameName)}（${svcNames}）─ 執事${bName}的緩衝時段 ${bufferSlot} 已從排班移除`);
+        }
+        if(!butlerShift.includes(boundarySlot)){
+          conflicts.push(`・${r.time} ${escH(r.gameName)}（${svcNames}）─ 執事${bName}的服務結束邊界 ${boundarySlot} 已從排班移除`);
+        }
+      }
+    });
+  }
+
+  if(conflicts.length > 0){
+    // 移除舊的警告列
+    document.getElementById('save-conflict-bar')?.remove();
+    const btnRow=document.querySelector('.day-editor .btn-row');
+    const bar=document.createElement('div');
+    bar.id='save-conflict-bar';
+    bar.style.cssText='padding:.85rem 1rem;background:rgba(162,45,45,0.1);border:1px solid rgba(162,45,45,0.35);border-radius:4px;margin-top:.5rem;font-size:12.5px;';
+    bar.innerHTML=`<div style="color:#F09595;margin-bottom:.6rem;">⚠ 以下預約與新排班設定衝突，儲存後將受影響：</div>
+      <div style="color:var(--ts);font-size:12px;line-height:1.9;margin-bottom:.75rem;">${conflicts.map(c=>`${escH(c)}`).join('<br>')}</div>
+      <div style="display:flex;gap:.5rem;">
+        <button onclick="forceSaveDaySchedule()" style="padding:.35rem .9rem;background:rgba(162,45,45,0.6);border:1px solid rgba(162,45,45,0.5);border-radius:4px;color:#fff;font-size:12px;cursor:pointer;font-family:'Noto Serif TC',serif;">確認儲存</button>
+        <button onclick="document.getElementById('save-conflict-bar')?.remove()" style="padding:.35rem .75rem;background:transparent;border:1px solid var(--bdr);border-radius:4px;color:var(--ts);font-size:12px;cursor:pointer;font-family:'Noto Serif TC',serif;">取消</button>
+      </div>`;
+    if(btnRow) btnRow.insertAdjacentElement('afterend', bar);
+    return;
+  }
+
+  forceSaveDaySchedule();
+}
+
+function forceSaveDaySchedule(){
+  document.getElementById('save-conflict-bar')?.remove();
+  const butlerShifts=editDayDraft.butlerShifts||{};
+  const photographerShifts=editDayDraft.photographerShifts||{};
+  const activeButlers=Object.keys(butlerShifts).filter(bid=>butlerShifts[bid]?.length>0);
+  schedule[editDay]={
+    ...editDayDraft,
+    butlerShifts,
+    photographerShifts,
+    butlers: activeButlers,
+  };
+  const ok=saveSchedule();
+  showToast(ok?'✓ 已儲存！':'✗ 儲存失敗', ok?'ok':'err');
+  if(ok){ editDay=null; editDayDraft=null; renderView('schedule'); }
+}
+function deleteDaySchedule(){
+  if(!editDay) return;
+  const existingBar=document.getElementById('del-day-confirm');
+  if(existingBar){ existingBar.remove(); return; }
+
+  // 檢查當日是否有有效預約
+  const activeRes=reservations.filter(r=>r.date===editDay && (r.status||'new')!=='cancelled');
+  const btnRow=document.querySelector('.day-editor .btn-row');
+  const bar=document.createElement('div');
+  bar.id='del-day-confirm';
+  bar.style.cssText='display:flex;align-items:center;gap:.65rem;padding:.65rem .9rem;border:1px solid;border-radius:4px;margin-top:.5rem;font-size:12.5px;flex-wrap:wrap;';
+
+  if(activeRes.length>0){
+    // 有有效預約 → 禁止清除，顯示警告
+    bar.style.background='rgba(162,45,45,0.12)';
+    bar.style.borderColor='rgba(162,45,45,0.4)';
+    bar.innerHTML=`<span style="color:#F09595;flex:1;">
+      ✗ 無法清除：${editDay} 尚有 <strong>${activeRes.length}</strong> 筆有效預約。<br>
+      <span style="font-size:11px;">請先在「預約紀錄」將相關預約取消或刪除後，再清除此日排班。</span>
+    </span>
+    <button onclick="document.getElementById('del-day-confirm')?.remove()" style="padding:.35rem .75rem;background:transparent;border:1px solid rgba(162,45,45,0.4);border-radius:4px;color:#F09595;font-size:12px;cursor:pointer;font-family:'Noto Serif TC',serif;">關閉</button>`;
+  } else {
+    // 無有效預約 → 顯示確認
+    bar.style.background='rgba(162,45,45,0.08)';
+    bar.style.borderColor='rgba(162,45,45,0.3)';
+    bar.innerHTML=`<span style="color:#F09595;flex:1;">確定清除 ${editDay} 的所有排班設定？此操作不可復原。</span>
+      <button onclick="confirmDeleteDay()" style="padding:.35rem .9rem;background:rgba(162,45,45,0.6);border:1px solid rgba(162,45,45,0.5);border-radius:4px;color:#fff;font-size:12px;cursor:pointer;font-family:'Noto Serif TC',serif;">確定清除</button>
+      <button onclick="document.getElementById('del-day-confirm')?.remove()" style="padding:.35rem .75rem;background:transparent;border:1px solid var(--bdr);border-radius:4px;color:var(--ts);font-size:12px;cursor:pointer;font-family:'Noto Serif TC',serif;">取消</button>`;
+  }
+
+  if(btnRow) btnRow.insertAdjacentElement('afterend', bar);
+}
+
+function confirmDeleteDay(){
+  delete schedule[editDay];
+  saveSchedule();
+  showToast('✓ 已清除此日設定','ok');
+  editDay=null; editDayDraft=null; renderView('schedule');
+}
+// 移除舊的 toggleDraftButler（不再使用）
+
+// ═══════════════════════════════════════════════
+//  RESERVATIONS
+// ═══════════════════════════════════════════════
+const RES_STATUSES = [
+  {id:'new',       label:'新預約',   cls:'new'},
+  {id:'confirmed', label:'確認完畢', cls:'confirmed'},
+  {id:'processing',label:'處理中',   cls:'processing'},
+  {id:'cancelled', label:'取消',     cls:'cancelled'},
+];
+
+let resEditId = null; // 目前正在編輯的預約 id
+
+function renderReservations(){
+  const fDate = window._fDate||'';
+  const fButler = window._fButler||'';
+  const fStatus = window._fStatus||'';
+  const fSearch = window._fSearch||'';
+
+  let filtered=[...reservations];
+  if(fDate)   filtered=filtered.filter(r=>r.date===fDate);
+  if(fButler) filtered=filtered.filter(r=>r.butler===fButler);
+  if(fStatus) filtered=filtered.filter(r=>(r.status||'new')===fStatus);
+  if(fSearch){ const q=fSearch.toLowerCase(); filtered=filtered.filter(r=>r.gameName?.toLowerCase().includes(q)||r.contact?.toLowerCase().includes(q)); }
+  filtered.sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
+
+  const dateOptions=[...new Set(reservations.map(r=>r.date))].sort().reverse();
+
+  // 編輯面板
+  let editPanelHtml='';
+  if(resEditId){
+    const r=reservations.find(x=>x.id===resEditId);
+    if(r) editPanelHtml=renderResEditPanel(r);
+  }
+
+  return `
+    <div class="pg-title">預約紀錄　<span style="font-size:1rem;color:var(--ts);">共 ${reservations.length} 筆</span></div>
+    ${editPanelHtml}
+    <div class="filterbar">
+      <select onchange="setFilter('date',this.value)">
+        <option value="">所有日期</option>
+        ${dateOptions.map(d=>`<option value="${d}" ${fDate===d?'selected':''}>${d}</option>`).join('')}
+      </select>
+      <select onchange="setFilter('butler',this.value)">
+        <option value="">所有執事</option>
+        <option value="none">不指定</option>
+        ${BUTLERS.map(b=>`<option value="${b.id}" ${fButler===b.id?'selected':''}>${escH(b.name)}</option>`).join('')}
+      </select>
+      <select onchange="setFilter('status',this.value)">
+        <option value="">所有狀態</option>
+        ${RES_STATUSES.map(s=>`<option value="${s.id}" ${fStatus===s.id?'selected':''}>${s.label}</option>`).join('')}
+      </select>
+      <input type="text" placeholder="搜尋角色名 / 聯絡方式..." value="${escH(fSearch)}" oninput="setFilter('search',this.value)">
+      <button class="sbtn" onclick="clearFilters()">清除篩選</button>
+    </div>
+    ${filtered.length===0?
+      `<div class="empty-state">未找到符合的預約紀錄</div>`:
+      filtered.map(r=>resCardHtml(r)).join('')
+    }
+  `;
+}
+
+function renderResEditPanel(r){
+  const today=new Date().toISOString().split('T')[0];
+  const openDates=Object.keys(schedule).filter(d=>schedule[d]?.open).sort();
+  const times = r.date && schedule[r.date]?.times ? schedule[r.date].times : [];
+
+  return `
+    <div class="card" style="border-color:var(--bdrs);margin-bottom:1.25rem;">
+      <h3>編輯預約　<span style="font-size:.85rem;color:var(--ts);">${escH(r.gameName)} · ${r.date} ${r.time}</span></h3>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.9rem;">
+        <div class="frow" style="margin-bottom:0;">
+          <label class="flbl">預約日期</label>
+          <select id="re-date" onchange="reloadEditTimes(this.value)">
+            ${openDates.map(d=>`<option value="${d}" ${r.date===d?'selected':''}>${d}${schedule[d]?.label?' '+schedule[d].label:''}</option>`).join('')}
+          </select>
+        </div>
+        <div class="frow" style="margin-bottom:0;">
+          <label class="flbl">預約時段</label>
+          <select id="re-time">
+            ${(schedule[r.date]?.times||[]).map(t=>`<option value="${t}" ${r.time===t?'selected':''}>${t}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+
+      <div class="frow" style="margin-top:.9rem;">
+        <label class="flbl">預約服務（可多選）</label>
+        <div style="display:flex;flex-wrap:wrap;gap:.4rem;">
+          ${SERVICES.map(s=>`
+            <div class="chip${(r.services||[]).includes(s.id)?' on':''}" onclick="toggleResService('${s.id}',this)">${s.name}</div>
+          `).join('')}
+        </div>
+      </div>
+
+      <div class="frow">
+        <label class="flbl">指名執事</label>
+        <select id="re-butler">
+          <option value="none" ${r.butler==='none'?'selected':''}>不指定（宅邸安排）</option>
+          ${BUTLERS.map(b=>{
+            const daySchedule = schedule[r.date];
+            let onDuty = true;
+            if(daySchedule?.butlerShifts !== undefined){
+              const shifts = daySchedule.butlerShifts[b.id] || [];
+              onDuty = shifts.length > 0;
+            }
+            return `<option value="${b.id}" ${r.butler===b.id?'selected':''}>${escH(b.name)} ─ ${escH(b.tag)}${onDuty?'':' ⚠ 未排班'}</option>`;
+          }).join('')}
+        </select>
+      </div>
+
+      ${(r.services||[]).includes('photo')?`
+      <div class="frow">
+        <label class="flbl">攝影師</label>
+        <select id="re-photographer">
+          ${PHOTOGRAPHERS.map(p=>`<option value="${p.id}" ${r.photographer===p.id?'selected':''}>${escH(p.name)} ─ ${p.price.toLocaleString()} Gil</option>`).join('')}
+        </select>
+      </div>`:''}
+      <div class="frow">
+        <label class="flbl">預約狀態</label>
+        <select id="re-status">
+          ${RES_STATUSES.map(s=>`<option value="${s.id}" ${(r.status||'new')===s.id?'selected':''}>${s.label}</option>`).join('')}
+        </select>
+      </div>
+
+      <div class="frow">
+        <label class="flbl">後台備註（僅管理員可見）</label>
+        <textarea id="re-adminmemo" rows="2" placeholder="給自己的提醒事項，客人看不到...">${escH(r.adminMemo||'')}</textarea>
+      </div>
+
+      <div class="btn-row">
+        <button class="pbtn" onclick="saveResEdit('${r.id}')">儲存修改</button>
+        <button class="sbtn" onclick="cancelResEdit()">取消</button>
+        <button class="dbtn" onclick="deleteRes('${r.id}')">刪除此筆</button>
+      </div>
+    </div>
+  `;
+}
+
+// 切換日期時同步更新時段下拉
+function reloadEditTimes(dateStr){
+  const times=schedule[dateStr]?.times||[];
+  const sel=document.getElementById('re-time');
+  if(!sel) return;
+  sel.innerHTML=times.map(t=>`<option value="${t}">${t}</option>`).join('');
+}
+
+// 服務選取 toggle（改變 chip 樣式，並記錄暫存狀態）
+let _resEditServices = null;
+function toggleResService(sid, el){
+  if(!_resEditServices){
+    const r=reservations.find(x=>x.id===resEditId);
+    _resEditServices=[...(r?.services||[])];
+  }
+  const i=_resEditServices.indexOf(sid);
+  if(i===-1) _resEditServices.push(sid); else _resEditServices.splice(i,1);
+  el.classList.toggle('on');
+}
+
+function saveResEdit(id){
+  const idx=reservations.findIndex(r=>r.id===id);
+  if(idx<0) return;
+  const date=document.getElementById('re-date')?.value||reservations[idx].date;
+  const time=document.getElementById('re-time')?.value||reservations[idx].time;
+  const butler=document.getElementById('re-butler')?.value||reservations[idx].butler;
+  const photographer=document.getElementById('re-photographer')?.value||reservations[idx].photographer||null;
+  const status=document.getElementById('re-status')?.value||'new';
+  const adminMemo=(document.getElementById('re-adminmemo')?.value||'').trim();
+  const services=_resEditServices!==null ? _resEditServices : reservations[idx].services;
+
+  // ── 防呆：執事衝突檢查 ──
+  if(butler !== 'none'){
+    const butlerName = BUTLERS.find(b=>b.id===butler)?.name || butler;
+
+    // 1. 檢查執事當天是否有排班
+    const daySchedule = schedule[date];
+    if(daySchedule?.butlerShifts !== undefined){
+      const butlerShifts = daySchedule.butlerShifts[butler] || [];
+      if(butlerShifts.length === 0){
+        showToast(`✗ ${butlerName} 在 ${date} 沒有排班，無法指名`, 'err');
+        return;
+      }
+      // 2. 檢查執事在該時段是否有排班（整點且非最後一格）
+      const bookableTimes = butlerShifts.filter(t=>t.endsWith(':00')).sort();
+      const bookable = bookableTimes.length > 1 ? bookableTimes.slice(0,-1) : bookableTimes;
+      if(!bookable.includes(time)){
+        showToast(`✗ ${butlerName} 在 ${time} 無排班或該時段不可預約`, 'err');
+        return;
+      }
+    }
+
+    // 3. 檢查是否與其他預約衝突（同一整點時段）
+    const allTimes = schedule[date]?.times || [];
+    const otherRes = reservations.filter(r => r.id !== id && r.date === date && r.butler === butler && (r.status||'new') !== 'cancelled');
+    const blocked = new Set();
+    otherRes.forEach(r => {
+      // XX:30 已排除在可預約時段外，只需封鎖已被預約的整點本身
+      if(r.time.endsWith(':00')) blocked.add(r.time);
+    });
+    if(blocked.has(time)){
+      const butlerName2 = BUTLERS.find(b=>b.id===butler)?.name || butler;
+      showToast(`✗ ${butlerName2} 在 ${time} 已有預約`, 'err');
+      return;
+    }
+  }
+
+  // ── 費用計算（統一使用 SERVICES 定義）──
+  const hasDesig = butler !== 'none';
+  let total = 0;
+  services.forEach(sid => {
+    const s = SERVICES.find(x => x.id === sid);
+    if(s){ total += s.price; if(hasDesig && s.extra) total += s.extra; }
+  });
+
+  reservations[idx]={...reservations[idx], date, time, butler, photographer, services, status, adminMemo, total,
+    designated: butler!=='none', updatedAt: new Date().toISOString()};
+  saveReservations();
+  showToast('✓ 預約已更新','ok');
+  resEditId=null; _resEditServices=null;
+  renderView('reservations');
+}
+
+function cancelResEdit(){ resEditId=null; _resEditServices=null; renderView('reservations'); }
+
+function startResEdit(id){
+  resEditId=id; _resEditServices=null;
+  window.scrollTo({top:0,behavior:'smooth'});
+  renderView('reservations');
+}
+
+function updateResStatus(id, status){
+  const idx=reservations.findIndex(r=>r.id===id);
+  if(idx<0) return;
+  reservations[idx].status=status;
+  saveReservations();
+  const s=RES_STATUSES.find(x=>x.id===status);
+  showToast(`✓ 狀態已更新為「${s?.label||status}」`,'ok');
+  // 直接更新 DOM 的狀態 badge，不重新 render 整頁
+  const badge=document.querySelector(`[data-res-id="${id}"] .res-status`);
+  if(badge){ badge.className=`res-status ${s?.cls||'new'}`; badge.textContent=s?.label||status; }
+}
+
+function setFilter(k,v){
+  if(k==='date')   window._fDate=v;
+  if(k==='butler') window._fButler=v;
+  if(k==='status') window._fStatus=v;
+  if(k==='search') window._fSearch=v;
+  document.getElementById('content').innerHTML=renderReservations();
+}
+function clearFilters(){ window._fDate=''; window._fButler=''; window._fStatus=''; window._fSearch=''; renderView('reservations'); }
+
+function deleteRes(id){
+  // 用 inline 確認取代 confirm()，避免 iframe 環境封鎖彈窗
+  const existing = document.getElementById('del-confirm-'+id);
+  if(existing){ existing.remove(); return; }
+  const card = document.querySelector(`[data-res-id="${id}"]`);
+  if(!card){ reservations=reservations.filter(r=>r.id!==id); saveReservations(); renderView('reservations'); return; }
+  const bar = document.createElement('div');
+  bar.id = 'del-confirm-'+id;
+  bar.style.cssText='display:flex;align-items:center;gap:.65rem;padding:.65rem .9rem;background:rgba(162,45,45,0.12);border:1px solid rgba(162,45,45,0.3);border-radius:4px;margin-top:.5rem;font-size:12.5px;';
+  bar.innerHTML=`<span style="color:#F09595;flex:1;">確定要刪除這筆預約？此操作無法復原。</span>
+    <button onclick="confirmDeleteRes('${id}')" style="padding:.35rem .9rem;background:rgba(162,45,45,0.6);border:1px solid rgba(162,45,45,0.5);border-radius:4px;color:#fff;font-size:12px;cursor:pointer;font-family:'Noto Serif TC',serif;">確定刪除</button>
+    <button onclick="document.getElementById('del-confirm-${id}')?.remove()" style="padding:.35rem .75rem;background:transparent;border:1px solid var(--bdr);border-radius:4px;color:var(--ts);font-size:12px;cursor:pointer;font-family:'Noto Serif TC',serif;">取消</button>`;
+  card.appendChild(bar);
+}
+
+function confirmDeleteRes(id){
+  reservations=reservations.filter(r=>r.id!==id);
+  saveReservations();
+  showToast('✓ 已刪除','ok');
+  resEditId=null; _resEditServices=null;
+  renderView('reservations');
+}
+
+// ═══════════════════════════════════════════════
+//  BUTLERS
+// ═══════════════════════════════════════════════
+function renderButlers(){
+  const TAG_OPTIONS = ['執事長','資深執事','執事','見習執事'];
+
+  let formHtml = '';
+  if(butlerEditId !== null){
+    const isNew = butlerEditId === 'new';
+    const b = isNew ? {id:'',name:'',initial:'',tag:'執事',photo:'',profileUrl:''} : BUTLERS.find(x=>x.id===butlerEditId)||{};
+    const previewHtml = b.photo
+      ? `<img class="photo-preview" src="${escH(b.photo)}" alt="預覽" onerror="this.style.display='none'">`
+      : `<div style="width:72px;height:72px;border-radius:50%;background:var(--bg);border:1px solid var(--bdr);display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:1.5rem;color:var(--gold);margin:0 auto .5rem;">${escH(b.initial||'?')}</div>`;
+    formHtml = `
+      <div class="card" style="border-color:var(--bdrs);">
+        <h3>${isNew?'新增執事':'編輯執事資料'}</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem;">
+          <div class="frow" style="margin-bottom:.7rem;">
+            <label class="flbl">執事姓名 *</label>
+            <input type="text" id="be-name" placeholder="例：艾倫" value="${escH(b.name)}" maxlength="10">
+          </div>
+          <div class="frow" style="margin-bottom:.7rem;">
+            <label class="flbl">頭像備用文字</label>
+            <input type="text" id="be-initial" placeholder="例：艾" value="${escH(b.initial)}" maxlength="2">
+          </div>
+        </div>
+        <div class="frow" style="margin-bottom:.7rem;">
+          <label class="flbl">職稱</label>
+          <select id="be-tag">
+            ${TAG_OPTIONS.map(t=>`<option value="${t}" ${b.tag===t?'selected':''}>${t}</option>`).join('')}
+          </select>
+        </div>
+        <div class="frow" style="margin-bottom:.7rem;">
+          <label class="flbl">形象照網址</label>
+          <input type="text" id="be-photo" placeholder="https://raw.githubusercontent.com/..." value="${escH(b.photo||'')}">
+          ${b.photo?`<div style="font-size:11px;color:var(--gold);margin-top:.3rem;">✦ 已設定網址（圖片將在前台預約頁顯示）</div>`:`<div style="font-size:10.5px;color:var(--tm);margin-top:.25rem;">建議上傳至 GitHub / PostImg，貼入直連網址</div>`}
+        </div>
+        <div class="frow" style="margin-bottom:0;">
+          <label class="flbl">個人頁面連結（選填）</label>
+          <input type="text" id="be-url" placeholder="https://theamberff14.wixsite.com/home/staff/..." value="${escH(b.profileUrl||'')}">
+        </div>
+        <div class="btn-row">
+          <button class="pbtn" onclick="saveButlerEdit('${isNew?'new':b.id}')">${isNew?'新增執事':'儲存修改'}</button>
+          <button class="sbtn" onclick="cancelButlerEdit()">取消</button>
+          ${!isNew?`<button class="dbtn" onclick="deleteButler('${b.id}')">離職（刪除）</button>`:''}
+        </div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="pg-title">執事管理</div>
+    ${formHtml}
+    <div class="card">
+      <h3 style="display:flex;justify-content:space-between;align-items:center;">
+        <span>執事列表（${BUTLERS.length} 位）</span>
+        <button class="pbtn" style="font-size:12px;padding:.45rem 1rem;" onclick="startAddButler()">＋ 新增執事</button>
+      </h3>
+      ${BUTLERS.length===0?
+        `<div class="empty-state" style="padding:1rem;">目前沒有任何執事，請新增。</div>` :
+        BUTLERS.map(b=>{
+          const totalRes=reservations.filter(r=>r.butler===b.id && (r.status||'new')!=='cancelled').length;
+          const avatarHtml = b.photo
+            ? `<img src="${escH(b.photo)}" alt="${escH(b.name)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
+            : escH(b.initial);
+          return `<div style="display:flex;align-items:center;gap:1rem;padding:.75rem 0;border-bottom:1px solid var(--bdr);">
+            <div class="badm-av">${avatarHtml}</div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:13.5px;color:var(--tp);">${escH(b.name)}</div>
+              <div style="font-size:11px;color:var(--tm);">${escH(b.tag)}${b.profileUrl?`　<a href="${escH(b.profileUrl)}" target="_blank" style="color:var(--gold);font-size:10px;">個人頁面 ↗</a>`:''}</div>
+            </div>
+            <div style="font-size:12px;color:var(--ts);text-align:right;margin-right:.5rem;">
+              累計指名 <span style="color:var(--gold);font-family:'Cormorant Garamond',serif;font-size:1rem;">${totalRes}</span> 次
+            </div>
+            <button class="sbtn" style="font-size:11.5px;padding:.4rem .9rem;flex-shrink:0;" onclick="startEditButler('${b.id}')">編輯</button>
+          </div>`;
+        }).join('')
+      }
+    </div>
+    <div class="card" style="font-size:12.5px;color:var(--ts);line-height:2;">
+      <h3>執事可預約狀態說明</h3>
+      <p>✦ 排班中有設定值班 → 前台顯示可指名</p>
+      <p>✦ 若已被同時段客人指名 → 次一時段自動封鎖（緩衝時間）</p>
+      <p>✦ 若所有開放時段皆已被指名 → 前台顯示已滿</p>
+      <p style="margin-top:.5rem;color:var(--tm);font-size:11.5px;">刪除執事後，其歷史預約紀錄仍會保留，但執事名稱將顯示為 ID。</p>
+    </div>
+    ${renderButlerScheduleSummary()}
+  `;
+}
+
+function startAddButler(){ butlerEditId='new'; renderView('butlers'); }
+function startEditButler(id){ butlerEditId=id; renderView('butlers'); }
+function cancelButlerEdit(){ butlerEditId=null; renderView('butlers'); }
+
+// 即時預覽圖片網址
+function previewPhotoUrl(url){
+  const wrap=document.getElementById('photo-preview-wrap');
+  if(!wrap) return;
+  if(url.trim()){
+    const img=document.createElement('img');
+    img.className='photo-preview';
+    img.alt='預覽';
+    img.onerror=()=>{ wrap.innerHTML=`<div style="width:72px;height:72px;border-radius:50%;background:var(--bg);border:1px solid #F09595;display:flex;align-items:center;justify-content:center;font-size:10px;color:#F09595;text-align:center;margin:0 auto .5rem;padding:4px;">連結無效</div>`; };
+    img.src=url.trim();
+    wrap.innerHTML='';
+    wrap.appendChild(img);
+  } else {
+    const initial=document.getElementById('be-initial')?.value||'?';
+    wrap.innerHTML=`<div style="width:72px;height:72px;border-radius:50%;background:var(--bg);border:1px solid var(--bdr);display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:1.5rem;color:var(--gold);margin:0 auto .5rem;">${initial}</div>`;
+  }
+}
+
+function saveButlerEdit(id){
+  const name=(document.getElementById('be-name')?.value||'').trim();
+  const initial=(document.getElementById('be-initial')?.value||'').trim();
+  const tag=document.getElementById('be-tag')?.value||'執事';
+  const profileUrl=(document.getElementById('be-url')?.value||'').trim();
+  const photo=(document.getElementById('be-photo')?.value||'').trim();
+  if(!name){ showToast('請填寫執事姓名','err'); return; }
+
+  if(id==='new'){
+    const newId='b'+Date.now().toString(36);
+    BUTLERS.push({id:newId, name, initial, tag, profileUrl, photo});
+    showToast(`✓ 已新增執事「${name}」`,'ok');
+  } else {
+    const idx=BUTLERS.findIndex(b=>b.id===id);
+    if(idx>=0) BUTLERS[idx]={...BUTLERS[idx], name, initial, tag, profileUrl, photo};
+    showToast(`✓ 已更新執事「${name}」的資料`,'ok');
+  }
+  saveButlers();
+  butlerEditId=null;
+  renderView('butlers');
+}
+
+function deleteButler(id){
+  const b=BUTLERS.find(x=>x.id===id);
+  if(!b) return;
+  const resCount=reservations.filter(r=>r.butler===id && (r.status||'new')!=='cancelled').length;
+  const warnMsg=resCount>0?`此執事有 ${resCount} 筆有效預約紀錄，刪除後名稱將無法顯示。`:'' ;
+  // 在按鈕旁顯示 inline 確認
+  const existingBar=document.getElementById('del-butler-confirm');
+  if(existingBar) existingBar.remove();
+  const btnRow=document.querySelector('.btn-row');
+  if(!btnRow){ BUTLERS=BUTLERS.filter(x=>x.id!==id); saveButlers(); renderView('butlers'); return; }
+  const bar=document.createElement('div');
+  bar.id='del-butler-confirm';
+  bar.style.cssText='display:flex;align-items:center;gap:.65rem;padding:.65rem .9rem;background:rgba(162,45,45,0.12);border:1px solid rgba(162,45,45,0.3);border-radius:4px;margin-top:.5rem;font-size:12.5px;flex-wrap:wrap;';
+  bar.innerHTML=`<span style="color:#F09595;flex:1;">確定要刪除執事「${escH(b.name)}」？${warnMsg}</span>
+    <button onclick="confirmDeleteButler('${id}')" style="padding:.35rem .9rem;background:rgba(162,45,45,0.6);border:1px solid rgba(162,45,45,0.5);border-radius:4px;color:#fff;font-size:12px;cursor:pointer;font-family:'Noto Serif TC',serif;">確定離職</button>
+    <button onclick="document.getElementById('del-butler-confirm')?.remove()" style="padding:.35rem .75rem;background:transparent;border:1px solid var(--bdr);border-radius:4px;color:var(--ts);font-size:12px;cursor:pointer;font-family:'Noto Serif TC',serif;">取消</button>`;
+  btnRow.insertAdjacentElement('afterend', bar);
+}
+
+function confirmDeleteButler(id){
+  const b=BUTLERS.find(x=>x.id===id);
+  BUTLERS=BUTLERS.filter(x=>x.id!==id);
+  saveButlers();
+  showToast(`✓ 已移除執事「${b?.name||''}」`,'ok');
+  butlerEditId=null;
+  renderView('butlers');
+}
+
+// ═══════════════════════════════════════════════
+//  PHOTOGRAPHERS
+// ═══════════════════════════════════════════════
+function renderPhotographers(){
+  let formHtml='';
+  if(photographerEditId!==null){
+    const isNew=photographerEditId==='new';
+    const p=isNew?{id:'',name:'',initial:'',price:0,portfolioUrl:'',photo:''}:PHOTOGRAPHERS.find(x=>x.id===photographerEditId)||{};
+    const previewHtml=p.photo?`<img class="photo-preview" src="${escH(p.photo)}" alt="預覽" onerror="this.style.display='none'">`:
+      `<div style="width:72px;height:72px;border-radius:50%;background:var(--bg);border:1px solid var(--bdr);display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:1.5rem;color:var(--gold);margin:0 auto .5rem;">${escH(p.initial||'?')}</div>`;
+    formHtml=`
+      <div class="card" style="border-color:var(--bdrs);">
+        <h3>${isNew?'新增攝影師':'編輯攝影師資料'}</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem;">
+          <div class="frow" style="margin-bottom:.7rem;">
+            <label class="flbl">姓名 *</label>
+            <input type="text" id="pe-name" placeholder="例：Hinako" value="${escH(p.name)}" maxlength="20">
+          </div>
+          <div class="frow" style="margin-bottom:.7rem;">
+            <label class="flbl">頭像備用文字</label>
+            <input type="text" id="pe-initial" placeholder="例：H" value="${escH(p.initial)}" maxlength="2">
+          </div>
+        </div>
+        <div class="frow" style="margin-bottom:.7rem;">
+          <label class="flbl">收費（Gil）*</label>
+          <input type="text" id="pe-price" placeholder="例：120000" value="${p.price||0}">
+        </div>
+        <div class="frow" style="margin-bottom:.7rem;">
+          <label class="flbl">形象照網址</label>
+          <input type="text" id="pe-photo" placeholder="https://raw.githubusercontent.com/..." value="${escH(p.photo||'')}">
+          ${p.photo?`<div style="font-size:11px;color:var(--gold);margin-top:.3rem;">✦ 已設定網址（圖片將在前台預約頁顯示）</div>`:`<div style="font-size:10.5px;color:var(--tm);margin-top:.25rem;">建議上傳至 GitHub / PostImg，貼入直連網址</div>`}
+        </div>
+        <div class="frow" style="margin-bottom:0;">
+          <label class="flbl">作品集連結（選填）</label>
+          <input type="text" id="pe-url" placeholder="https://..." value="${escH(p.portfolioUrl||'')}">
+        </div>
+        <div class="btn-row">
+          <button class="pbtn" onclick="savePhotographerEdit('${isNew?'new':p.id}')">${isNew?'新增攝影師':'儲存修改'}</button>
+          <button class="sbtn" onclick="cancelPhotographerEdit()">取消</button>
+          ${!isNew?`<button class="dbtn" onclick="deletePhotographer('${p.id}')">刪除</button>`:''}
+        </div>
+      </div>
+    `;
+  }
+  return `
+    <div class="pg-title">攝影師管理</div>
+    ${formHtml}
+    <div class="card">
+      <h3 style="display:flex;justify-content:space-between;align-items:center;">
+        <span>攝影師列表（${PHOTOGRAPHERS.length} 位）</span>
+        <button class="pbtn" style="font-size:12px;padding:.45rem 1rem;" onclick="startAddPhotographer()">＋ 新增攝影師</button>
+      </h3>
+      ${PHOTOGRAPHERS.length===0?`<div class="empty-state" style="padding:1rem;">目前沒有任何攝影師</div>`:
+        PHOTOGRAPHERS.map(p=>{
+          const totalRes=reservations.filter(r=>r.photographer===p.id&&(r.status||'new')!=='cancelled').length;
+          const avatarHtml=p.photo?`<img src="${escH(p.photo)}" alt="${escH(p.name)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`:escH(p.initial);
+          return `<div style="display:flex;align-items:center;gap:1rem;padding:.75rem 0;border-bottom:1px solid var(--bdr);">
+            <div class="badm-av">${avatarHtml}</div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:13.5px;color:var(--tp);">${escH(p.name)}</div>
+              <div style="font-size:11px;color:var(--tm);">${p.price.toLocaleString()} Gil${p.portfolioUrl?`　<a href="${escH(p.portfolioUrl)}" target="_blank" style="color:var(--gold);font-size:10px;">作品集 ↗</a>`:''}</div>
+            </div>
+            <div style="font-size:12px;color:var(--ts);margin-right:.5rem;">累計 <span style="color:var(--gold);font-family:'Cormorant Garamond',serif;font-size:1rem;">${totalRes}</span> 筆</div>
+            <button class="sbtn" style="font-size:11.5px;padding:.4rem .9rem;flex-shrink:0;" onclick="startEditPhotographer('${p.id}')">編輯</button>
+          </div>`;
+        }).join('')
+      }
+    </div>
+  `;
+}
+function startAddPhotographer(){ photographerEditId='new'; renderView('photographers'); }
+function startEditPhotographer(id){ photographerEditId=id; renderView('photographers'); }
+function cancelPhotographerEdit(){ photographerEditId=null; renderView('photographers'); }
+function previewPhotoUrlP(url){
+  const wrap=document.getElementById('photo-preview-wrap-p');
+  if(!wrap) return;
+  if(url.trim()){
+    const img=document.createElement('img');
+    img.className='photo-preview';
+    img.alt='預覽';
+    img.onerror=()=>{ wrap.innerHTML=`<div style="width:72px;height:72px;border-radius:50%;background:var(--bg);border:1px solid #F09595;display:flex;align-items:center;justify-content:center;font-size:10px;color:#F09595;text-align:center;margin:0 auto .5rem;padding:4px;">連結無效</div>`; };
+    img.src=url.trim();
+    wrap.innerHTML='';
+    wrap.appendChild(img);
+  } else {
+    const initial=document.getElementById('pe-initial')?.value||'?';
+    wrap.innerHTML=`<div style="width:72px;height:72px;border-radius:50%;background:var(--bg);border:1px solid var(--bdr);display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:1.5rem;color:var(--gold);margin:0 auto .5rem;">${initial}</div>`;
+  }
+}
+function savePhotographerEdit(id){
+  const name=(document.getElementById('pe-name')?.value||'').trim();
+  const initial=(document.getElementById('pe-initial')?.value||'').trim();
+  const price=parseInt(document.getElementById('pe-price')?.value||'0')||0;
+  const portfolioUrl=(document.getElementById('pe-url')?.value||'').trim();
+  const photo=(document.getElementById('pe-photo')?.value||'').trim();
+  if(!name){ showToast('請填寫姓名','err'); return; }
+  if(id==='new'){
+    const newId='p'+Date.now().toString(36);
+    PHOTOGRAPHERS.push({id:newId,name,initial,price,portfolioUrl,photo});
+    showToast(`✓ 已新增攝影師「${name}」`,'ok');
+  } else {
+    const idx=PHOTOGRAPHERS.findIndex(p=>p.id===id);
+    if(idx>=0) PHOTOGRAPHERS[idx]={...PHOTOGRAPHERS[idx],name,initial,price,portfolioUrl,photo};
+    showToast(`✓ 已更新攝影師「${name}」`,'ok');
+  }
+  savePhotographers(); photographerEditId=null; renderView('photographers');
+}
+function deletePhotographer(id){
+  const p=PHOTOGRAPHERS.find(x=>x.id===id);
+  if(!p) return;
+  const resCount=reservations.filter(r=>r.photographer===id&&(r.status||'new')!=='cancelled').length;
+  const existing=document.getElementById('del-photographer-confirm');
+  if(existing){ existing.remove(); return; }
+  const btnRow=document.querySelector('.btn-row');
+  if(!btnRow) return;
+  const bar=document.createElement('div');
+  bar.id='del-photographer-confirm';
+  bar.style.cssText='display:flex;align-items:center;gap:.65rem;padding:.65rem .9rem;background:rgba(162,45,45,0.12);border:1px solid rgba(162,45,45,0.3);border-radius:4px;margin-top:.5rem;font-size:12.5px;flex-wrap:wrap;';
+  bar.innerHTML=`<span style="color:#F09595;flex:1;">確定要刪除攝影師「${escH(p.name)}」？${resCount>0?`此攝影師有 ${resCount} 筆有效預約。`:''}</span>
+    <button onclick="confirmDeletePhotographer('${id}')" style="padding:.35rem .9rem;background:rgba(162,45,45,0.6);border:1px solid rgba(162,45,45,0.5);border-radius:4px;color:#fff;font-size:12px;cursor:pointer;font-family:'Noto Serif TC',serif;">確定刪除</button>
+    <button onclick="document.getElementById('del-photographer-confirm')?.remove()" style="padding:.35rem .75rem;background:transparent;border:1px solid var(--bdr);border-radius:4px;color:var(--ts);font-size:12px;cursor:pointer;font-family:'Noto Serif TC',serif;">取消</button>`;
+  btnRow.insertAdjacentElement('afterend',bar);
+}
+function confirmDeletePhotographer(id){
+  const p=PHOTOGRAPHERS.find(x=>x.id===id);
+  PHOTOGRAPHERS=PHOTOGRAPHERS.filter(x=>x.id!==id);
+  savePhotographers(); showToast(`✓ 已刪除攝影師「${p?.name||''}」`,'ok');
+  photographerEditId=null; renderView('photographers');
+}
+
+function renderButlerScheduleSummary(){
+  const today=new Date().toISOString().split('T')[0];
+  const upcoming=Object.keys(schedule).filter(d=>d>=today&&schedule[d]?.open).sort().slice(0,10);
+  if(!upcoming.length) return '';
+  return `
+    <div class="card">
+      <h3>近期排班一覽</h3>
+      ${upcoming.map(d=>{
+        const day=schedule[d];
+        const resCount=reservations.filter(r=>r.date===d && (r.status||'new')!=='cancelled').length;
+        const shifts=day.butlerShifts||{};
+        return `<div style="padding:.65rem 0;border-bottom:1px solid var(--bdr);font-size:12.5px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.35rem;">
+            <span style="color:var(--tp);">${d}${day.label?` <span style="font-size:11px;color:var(--ts);">${escH(day.label)}</span>`:''}</span>
+            <span style="color:var(--gold);">${resCount}筆預約</span>
+          </div>
+          ${BUTLERS.filter(b=>(shifts[b.id]||[]).length>0).map(b=>`
+            <div style="display:flex;align-items:center;gap:.5rem;font-size:11.5px;color:var(--ts);margin-top:.2rem;">
+              <span style="color:var(--tp);min-width:48px;">${escH(b.name)}</span>
+              <span style="color:var(--tm);">${(shifts[b.id]||[]).join('、')}</span>
+            </div>
+          `).join('')}
+        </div>`;
+      }).join('')}
+    </div>
+  `;
+}
+
+// ═══════════════════════════════════════════════
+//  SHARED HELPERS
+// ═══════════════════════════════════════════════
+function resCardHtml(r){
+  const butler=r.butler==='none'?'不指定':(BUTLERS.find(b=>b.id===r.butler)?.name||r.butler||'不指定');
+  const svcs=r.services?.map(sid=>SERVICES.find(s=>s.id===sid)?.name||sid).join('、')||'-';
+  const rpLabel={light:'輕RP',medium:'中RP',none:'無RP'}[r.rp]||r.rp||'-';
+  const titleLabel=r.rpTitle==='自訂'?(r.rpTitleCustom||'自訂'):r.rpTitle||'-';
+  const createdAt=r.createdAt?r.createdAt.slice(0,16).replace('T',' '):'';
+  const updatedAt=r.updatedAt?` (更新 ${r.updatedAt.slice(0,16).replace('T',' ')})` : '';
+  const status=r.status||'new';
+  const statusObj=RES_STATUSES.find(s=>s.id===status)||RES_STATUSES[0];
+  return `
+    <div class="rcard" data-res-id="${r.id}">
+      <div class="rcard-head">
+        <div class="rcard-title">${r.date} ${r.time}　${escH(r.gameName)}</div>
+        <div class="rcard-date">${createdAt}${updatedAt}</div>
+      </div>
+      <div class="rcard-body">
+        服務：${svcs}　執事：${butler}${r.photographer?`　攝影師：${escH(PHOTOGRAPHERS.find(p=>p.id===r.photographer)?.name||r.photographer)}`:''}　稱謂：${titleLabel}　RP：${rpLabel}<br>
+        伺服器：${escH(r.server)}　聯絡：${escH(r.contact)}<br>
+        費用：<span style="color:var(--gold);">${r.total?.toLocaleString()||0} Gil</span>
+        ${r.rpNote?`<br>角色備註：${escH(r.rpNote)}`:''}
+        ${r.notes?`<br>其他備註：${escH(r.notes)}`:''}
+        ${r.adminMemo?`<br><span style="color:var(--gold);font-size:12px;">📌 後台備註：${escH(r.adminMemo)}</span>`:''}
+      </div>
+      <div style="margin-top:.75rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;">
+        <div style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;">
+          <span style="font-size:11px;color:var(--tm);">狀態：</span>
+          ${RES_STATUSES.map(s=>`
+            <span class="res-status ${s.cls}${status===s.id?'':''}" 
+              style="opacity:${status===s.id?'1':'0.38'}"
+              onclick="updateResStatus('${r.id}','${s.id}')">${s.label}</span>
+          `).join('')}
+        </div>
+        <div style="display:flex;gap:.4rem;">
+          <button class="sbtn" style="font-size:11.5px;padding:.35rem .85rem;" onclick="startResEdit('${r.id}')">編輯</button>
+          <button class="dbtn" style="font-size:11.5px;padding:.35rem .75rem;" onclick="deleteRes('${r.id}')">刪除</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function showToast(msg, type='ok'){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className=`toast ${type} show`;
+  setTimeout(()=>{ t.classList.remove('show'); }, 2500);
+}
+
+function escH(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ═══════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════
+loadData();
+</script>
+</body>
+</html>
