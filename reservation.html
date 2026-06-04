@@ -620,7 +620,7 @@ function renderService(){
 
       return `
       <div class="svc${selected?' sel':''}${disabled?' bkd':''}"
-        onclick="${disabled?'':``toggleSvc('${s.id}')``}"
+        onclick="${disabled?'':('toggleSvc(\'' + s.id + '\')')}"
         style="${disabled?'opacity:0.4;cursor:not-allowed;':''}"
       >
         <div class="schk">${selected?chkSvg():''}</div>
