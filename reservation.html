@@ -528,6 +528,17 @@ function renderAgree(){
 }
 
 // ── Step 2: 日期與時段 ──
+function formatDate(dateStr){
+  // 將 YYYY-MM-DD 轉成 YYYY/MM/DD (週)
+  const weekDays=['日','一','二','三','四','五','六'];
+  const d=new Date(dateStr+'T00:00:00');
+  const y=d.getFullYear();
+  const m=String(d.getMonth()+1).padStart(2,'0');
+  const day=String(d.getDate()).padStart(2,'0');
+  const w=weekDays[d.getDay()];
+  return `${y}/${m}/${day} (${w})`;
+}
+
 function renderDatetime(){
   const today=new Date().toISOString().split('T')[0];
   const openDates=Object.keys(schedule)
@@ -565,7 +576,7 @@ function renderDatetime(){
           <option value="">— 請選擇日期 —</option>
           ${openDates.map(d=>{
             const label=schedule[d].label?` ${schedule[d].label}`:'';
-            return `<option value="${d}" ${st.date===d?'selected':''}>${d}${label}</option>`;
+            return `<option value="${d}" ${st.date===d?'selected':''}>${formatDate(d)}${label}</option>`;
           }).join('')}
         </select>
       </div>`
@@ -774,7 +785,7 @@ function renderConfirm(){
   setMain(`
     <div class="stit">確認預約內容</div>
     <div class="sbox">
-      <div class="smr"><span class="sk">預約日期</span><span class="sv">${st.date}${schedule[st.date]?.label?' '+schedule[st.date].label:''}</span></div>
+      <div class="smr"><span class="sk">預約日期</span><span class="sv">${formatDate(st.date)}${schedule[st.date]?.label?' '+schedule[st.date].label:''}</span></div>
       <div class="smr"><span class="sk">預約時段</span><span class="sv">${st.time}</span></div>
       <div class="smr"><span class="sk">預約服務</span><span class="sv">${svcs}</span></div>
       <div class="smr"><span class="sk">指名執事</span><span class="sv">${butler}</span></div>
