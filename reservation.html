@@ -254,6 +254,7 @@ let st = {
   rp:'', rpTitle:'', rpTitleCustom:'', rpNote:'',
   gameName:'', server:'', contact:'', notes:''
 };
+let _isSubmitting = false; // 防止重複送出
 
 // ═══════════════════════════════════════════════
 //  Google Sheets API
@@ -294,15 +295,28 @@ async function loadData(){
         schedule[clean]=v;
       });
     }
-    if(Array.isArray(res)) reservations = res;
+    if(Array.isArray(res)) reservations = dedupeReservationsLocal(res);
     if(Array.isArray(butlers) && butlers.length>0) BUTLERS = butlers;
     if(Array.isArray(photographers) && photographers.length>0) PHOTOGRAPHERS = photographers;
   }catch(e){}
   showLoading(false);
 }
 
+function dedupeReservationsLocal(list){
+  const map=new Map();
+  (Array.isArray(list)?list:[]).forEach((r,idx)=>{
+    if(!r||!r.id) return;
+    const prev=map.get(r.id);
+    const score=x=>Math.max(Date.parse(x?.updatedAt||'')||0, Date.parse(x?.createdAt||'')||0);
+    if(!prev || score(r)>score(prev.r) || (score(r)===score(prev.r)&&idx>prev.idx)) map.set(r.id,{r,idx});
+  });
+  return [...map.values()].map(x=>x.r);
+}
+async function addReservation(reservation){
+  return await apiPost('addReservation', reservation);
+}
 async function saveReservations(){
-  return await apiPost('saveReservations', reservations);
+  return await apiPost('saveReservations', dedupeReservationsLocal(reservations));
 }
 
 function showLoading(on){
@@ -907,50 +921,66 @@ function collectInfo(){
 }
 
 async function submitRes(){
-  const day=schedule[st.date];
-  if(!day||!day.open){ alert('此日期已關閉預約，請重新選擇日期。'); st.step=1; render(); return; }
-  const availTimes=getAvailTimes(st.date);
-  if(!availTimes.includes(st.time)){ alert(`${st.time} 時段已不在開放預約的時段內，請重新選擇時段。`); st.step=1; st.time=''; render(); return; }
-  if(st.butler&&st.butler!=='none'){
-    if(!isButlerOnDutyAtTime(st.date,st.butler,st.time)){
-      const bName=BUTLERS.find(b=>b.id===st.butler)?.name||'該執事';
-      alert(`${bName} 在 ${st.time} 已無排班，請重新選擇執事。`);
-      st.step=3; st.butler=null; st.designated=false; render(); return;
+  if(_isSubmitting) return;
+  _isSubmitting=true;
+  try{
+    // 送出前重新讀取雲端最新資料，避免使用舊資料覆蓋新預約
+    await loadData();
+
+    const day=schedule[st.date];
+    if(!day||!day.open){ alert('此日期已關閉預約，請重新選擇日期。'); st.step=1; render(); return; }
+    const availTimes=getAvailTimes(st.date);
+    if(!availTimes.includes(st.time)){ alert(`${st.time} 時段已不在開放預約的時段內，請重新選擇時段。`); st.step=1; st.time=''; render(); return; }
+    if(st.butler&&st.butler!=='none'){
+      if(!isButlerOnDutyAtTime(st.date,st.butler,st.time)){
+        const bName=BUTLERS.find(b=>b.id===st.butler)?.name||'該執事';
+        alert(`${bName} 在 ${st.time} 已無排班，請重新選擇執事。`);
+        st.step=3; st.butler=null; st.designated=false; render(); return;
+      }
+      const timeStatus=getButlerTimesStatus(st.date,st.butler);
+      const slotStatus=timeStatus.find(ts=>ts.time===st.time);
+      if(slotStatus?.blocked){
+        const bName=BUTLERS.find(b=>b.id===st.butler)?.name||'該執事';
+        alert(`${bName} 在 ${st.time} 已被預約，請重新選擇執事或時段。`);
+        st.step=3; st.butler=null; st.designated=false; render(); return;
+      }
     }
-    const timeStatus=getButlerTimesStatus(st.date,st.butler);
-    const slotStatus=timeStatus.find(ts=>ts.time===st.time);
-    if(slotStatus?.blocked){
-      const bName=BUTLERS.find(b=>b.id===st.butler)?.name||'該執事';
-      alert(`${bName} 在 ${st.time} 已被預約，請重新選擇執事或時段。`);
-      st.step=3; st.butler=null; st.designated=false; render(); return;
+    if(st.services.includes('photo')){
+      if(!st.photographer){ alert('請選擇攝影師。'); st.step=getSteps().findIndex(s=>s.id==='photographer'); render(); return; }
+      if(!isPhotographerAvailable(st.date, st.photographer, st.time)){
+        const pName=PHOTOGRAPHERS.find(p=>p.id===st.photographer)?.name||'該攝影師';
+        alert(`${pName} 在 ${st.time} 已無法預約，請重新選擇。`);
+        st.step=getSteps().findIndex(s=>s.id==='photographer'); st.photographer=null; render(); return;
+      }
     }
+    const res={
+      id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),
+      date:st.date, time:st.time,
+      services:[...st.services],
+      designated:st.designated, butler:st.butler,
+      photographer:st.photographer||null,
+      rp:st.rp, rpTitle:st.rpTitle, rpTitleCustom:st.rpTitleCustom, rpNote:st.rpNote,
+      gameName:st.gameName, server:st.server, contact:st.contact, notes:st.notes,
+      total:calcTotal(),
+      status:'new',
+      createdAt:new Date().toISOString(),
+    };
+    showLoading(true);
+    const saved=await addReservation(res);
+    showLoading(false);
+    if(!saved?.ok){
+      alert(saved?.error || '送出預約失敗，請稍後再試。');
+      return;
+    }
+    if(Array.isArray(saved.data)) reservations=dedupeReservationsLocal(saved.data);
+    else reservations.push(res);
+    renderSuccess(st.gameName);
+  }catch(e){
+    showLoading(false);
+    alert('送出預約失敗，請稍後再試。');
+  }finally{
+    _isSubmitting=false;
   }
-  // 攝影師驗證
-  if(st.services.includes('photo')){
-    if(!st.photographer){ alert('請選擇攝影師。'); st.step=getSteps().findIndex(s=>s.id==='photographer'); render(); return; }
-    if(!isPhotographerAvailable(st.date, st.photographer, st.time)){
-      const pName=PHOTOGRAPHERS.find(p=>p.id===st.photographer)?.name||'該攝影師';
-      alert(`${pName} 在 ${st.time} 已無法預約，請重新選擇。`);
-      st.step=getSteps().findIndex(s=>s.id==='photographer'); st.photographer=null; render(); return;
-    }
-  }
-  const res={
-    id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),
-    date:st.date, time:st.time,
-    services:[...st.services],
-    designated:st.designated, butler:st.butler,
-    photographer:st.photographer||null,
-    rp:st.rp, rpTitle:st.rpTitle, rpTitleCustom:st.rpTitleCustom, rpNote:st.rpNote,
-    gameName:st.gameName, server:st.server, contact:st.contact, notes:st.notes,
-    total:calcTotal(),
-    status:'new',
-    createdAt:new Date().toISOString(),
-  };
-  reservations.push(res);
-  showLoading(true);
-  await saveReservations();
-  showLoading(false);
-  renderSuccess(st.gameName);
 }
 
 function resetForm(){

@@ -275,10 +275,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbwOrMIcW91ETRqsGN_dA_kT
 
 async function apiGet(action){
   try{
-    const res = await fetch(`${API_URL}?action=${action}`, {
-      method: 'GET',
-      mode: 'cors',
-    });
+    const res = await fetch(`${API_URL}?action=${action}`);
     return await res.json();
   }catch(e){ console.error('apiGet error:', action, e); return null; }
 }
@@ -287,7 +284,6 @@ async function apiPost(action, data){
   try{
     const res = await fetch(API_URL, {
       method: 'POST',
-      mode: 'cors',
       body: JSON.stringify({action, data}),
     });
     return await res.json();
@@ -302,12 +298,19 @@ async function loadData(){
       apiGet('getButlers'),
       apiGet('getPhotographers'),
     ]);
-    if(sched && typeof sched === 'object' && !Array.isArray(sched)) schedule = sched;
-    if(Array.isArray(res)) reservations = res;
+    if(sched && typeof sched === 'object' && !Array.isArray(sched)){
+      // 確保日期 key 都是 YYYY-MM-DD 格式
+      schedule={};
+      Object.entries(sched).forEach(([k,v])=>{
+        const clean = k.length===10 ? k : new Date(k).toISOString().slice(0,10);
+        schedule[clean]=v;
+      });
+    }
+    if(Array.isArray(res)) reservations = dedupeReservationsLocal(res);
     if(Array.isArray(butlers) && butlers.length>0) BUTLERS = butlers;
-    else { BUTLERS=[...BUTLERS_DEFAULT]; await saveButlers(); }
+    else { BUTLERS=[...BUTLERS_DEFAULT]; /* 雲端讀取不到時只使用本機預設，不自動覆寫 Sheets */ }
     if(Array.isArray(photographers) && photographers.length>0) PHOTOGRAPHERS = photographers;
-    else { PHOTOGRAPHERS=[...PHOTOGRAPHERS_DEFAULT]; await savePhotographers(); }
+    else { PHOTOGRAPHERS=[...PHOTOGRAPHERS_DEFAULT]; /* 雲端讀取不到時只使用本機預設，不自動覆寫 Sheets */ }
   }catch(e){}
 }
 
@@ -315,8 +318,37 @@ async function saveSchedule(){
   const r = await apiPost('saveSchedule', schedule);
   return r?.ok === true;
 }
+function dedupeReservationsLocal(list){
+  const map=new Map();
+  (Array.isArray(list)?list:[]).forEach((r,idx)=>{
+    if(!r||!r.id) return;
+    const prev=map.get(r.id);
+    const score=x=>Math.max(Date.parse(x?.updatedAt||'')||0, Date.parse(x?.createdAt||'')||0);
+    if(!prev || score(r)>score(prev.r) || (score(r)===score(prev.r)&&idx>prev.idx)) map.set(r.id,{r,idx});
+  });
+  return [...map.values()].map(x=>x.r);
+}
+function syncReservationsFromResponse(resp){
+  if(Array.isArray(resp?.data)) reservations=dedupeReservationsLocal(resp.data);
+}
 async function saveReservations(){
-  const r = await apiPost('saveReservations', reservations);
+  const r = await apiPost('saveReservations', dedupeReservationsLocal(reservations));
+  syncReservationsFromResponse(r);
+  return r?.ok === true;
+}
+async function updateReservationCloud(reservation){
+  const r = await apiPost('updateReservation', reservation);
+  syncReservationsFromResponse(r);
+  return r?.ok === true;
+}
+async function updateReservationStatusCloud(id, status){
+  const r = await apiPost('updateReservationStatus', {id, status});
+  syncReservationsFromResponse(r);
+  return r?.ok === true;
+}
+async function deleteReservationCloud(id){
+  const r = await apiPost('deleteReservation', {id});
+  syncReservationsFromResponse(r);
   return r?.ok === true;
 }
 async function saveButlers(){
@@ -876,9 +908,14 @@ async function forceSaveDaySchedule(){
     photographerShifts,
     butlers: activeButlers,
   };
-  const ok=await saveSchedule();
-  showToast(ok?'✓ 已儲存！':'✗ 儲存失敗', ok?'ok':'err');
-  if(ok){ editDay=null; editDayDraft=null; renderView('schedule'); }
+  // 先更新畫面
+  editDay=null; editDayDraft=null;
+  renderView('schedule');
+  showToast('✓ 儲存中...','ok');
+  // 背景儲存
+  saveSchedule()
+    .then(ok=>showToast(ok?'✓ 排班已儲存至雲端':'✗ 儲存失敗', ok?'ok':'err'))
+    .catch(()=>showToast('✗ 儲存失敗','err'));
 }
 async function deleteDaySchedule(){
   if(!editDay) return;
@@ -1134,12 +1171,20 @@ async function saveResEdit(id){
     if(s){ total += s.price; if(hasDesig && s.extra) total += s.extra; }
   });
 
-  reservations[idx]={...reservations[idx], date, time, butler, photographer, services, status, adminMemo, total,
+  const updatedReservation={...reservations[idx], date, time, butler, photographer, services, status, adminMemo, total,
     designated: butler!=='none', updatedAt: new Date().toISOString()};
-  await saveReservations();
-  showToast('✓ 預約已更新','ok');
+  reservations[idx]=updatedReservation;
+
+  // 先關閉編輯面板、更新畫面，再用單筆更新寫入雲端，避免整包覆蓋造成資料污染
   resEditId=null; _resEditServices=null;
   renderView('reservations');
+  showToast('✓ 預約已更新，儲存中...','ok');
+  updateReservationCloud(updatedReservation)
+    .then(ok=>{
+      showToast(ok?'✓ 已儲存至雲端':'✗ 儲存失敗，請重試', ok?'ok':'err');
+      if(ok) renderView('reservations');
+    })
+    .catch(()=>showToast('⚠ 儲存失敗，請重試','err'));
 }
 
 function cancelResEdit(){ resEditId=null; _resEditServices=null; renderView('reservations'); }
@@ -1150,15 +1195,39 @@ function startResEdit(id){
   renderView('reservations');
 }
 
+// 防止重複儲存的旗標
+let _isSaving = false;
+
 async function updateResStatus(id, status){
+  if(_isSaving) return; // 防止重複點擊
   const idx=reservations.findIndex(r=>r.id===id);
   if(idx<0) return;
+
+  const oldStatus=reservations[idx].status||'new';
   reservations[idx].status=status;
-  await saveReservations();
   const s=RES_STATUSES.find(x=>x.id===status);
-  showToast(`✓ 狀態已更新為「${s?.label||status}」`,'ok');
-  const badge=document.querySelector(`[data-res-id="${id}"] .res-status`);
-  if(badge){ badge.className=`res-status ${s?.cls||'new'}`; badge.textContent=s?.label||status; }
+  const card=document.querySelector(`[data-res-id="${id}"]`);
+  if(card){
+    card.querySelectorAll('.res-status').forEach(el=>{
+      el.style.opacity = el.dataset.status===status ? '1' : '0.38';
+    });
+  }
+  showToast(`✓ 狀態已更新為「${s?.label||status}」，儲存中...`,'ok');
+
+  _isSaving=true;
+  try{
+    const ok=await updateReservationStatusCloud(id,status);
+    if(!ok) throw new Error('save failed');
+    showToast('✓ 已儲存至雲端','ok');
+    renderView('reservations');
+  }
+  catch(e){
+    const rollbackIdx=reservations.findIndex(r=>r.id===id);
+    if(rollbackIdx>=0) reservations[rollbackIdx].status=oldStatus;
+    showToast('⚠ 儲存失敗，已還原狀態，請重試','err');
+    renderView('reservations');
+  }
+  finally{ _isSaving=false; }
 }
 
 function setFilter(k,v){
@@ -1175,7 +1244,7 @@ async function deleteRes(id){
   const existing = document.getElementById('del-confirm-'+id);
   if(existing){ existing.remove(); return; }
   const card = document.querySelector(`[data-res-id="${id}"]`);
-  if(!card){ reservations=reservations.filter(r=>r.id!==id); await saveReservations(); renderView('reservations'); return; }
+  if(!card){ await deleteReservationCloud(id); renderView('reservations'); return; }
   const bar = document.createElement('div');
   bar.id = 'del-confirm-'+id;
   bar.style.cssText='display:flex;align-items:center;gap:.65rem;padding:.65rem .9rem;background:rgba(162,45,45,0.12);border:1px solid rgba(162,45,45,0.3);border-radius:4px;margin-top:.5rem;font-size:12.5px;';
@@ -1186,11 +1255,17 @@ async function deleteRes(id){
 }
 
 async function confirmDeleteRes(id){
+  const before=[...reservations];
   reservations=reservations.filter(r=>r.id!==id);
-  await saveReservations();
-  showToast('✓ 已刪除','ok');
   resEditId=null; _resEditServices=null;
   renderView('reservations');
+  showToast('✓ 已刪除，儲存中...','ok');
+  deleteReservationCloud(id)
+    .then(ok=>{
+      if(ok){ showToast('✓ 已同步至雲端','ok'); renderView('reservations'); }
+      else { reservations=before; showToast('✗ 儲存失敗，已還原資料','err'); renderView('reservations'); }
+    })
+    .catch(()=>{ reservations=before; showToast('✗ 儲存失敗，已還原資料','err'); renderView('reservations'); });
 }
 
 // ═══════════════════════════════════════════════
@@ -1322,9 +1397,12 @@ async function saveButlerEdit(id){
     if(idx>=0) BUTLERS[idx]={...BUTLERS[idx], name, initial, tag, profileUrl, photo};
     showToast(`✓ 已更新執事「${name}」的資料`,'ok');
   }
-  await saveButlers();
   butlerEditId=null;
   renderView('butlers');
+  showToast(`✓ 儲存中...`,'ok');
+  saveButlers()
+    .then(ok=>showToast(ok?`✓ 已儲存至雲端`:'✗ 儲存失敗', ok?'ok':'err'))
+    .catch(()=>showToast('✗ 儲存失敗','err'));
 }
 
 async function deleteButler(id){
