@@ -202,18 +202,10 @@ const DC_LINK = 'https://discord.gg/9erfcz2ud5';
 // ═══════════════════════════════════════════════
 //  執事 & 攝影師 & 服務定義
 // ═══════════════════════════════════════════════
-let BUTLERS = [
-  {id:'b1',name:'亞修',initial:'亞',tag:'執事長'},
-  {id:'b2',name:'萊昂',initial:'萊',tag:'資深執事'},
-  {id:'b3',name:'艾倫',initial:'艾',tag:'執事'},
-  {id:'b4',name:'克勞德',initial:'克',tag:'執事'},
-  {id:'b5',name:'伊森',initial:'伊',tag:'見習執事'},
-];
-
-let PHOTOGRAPHERS = [
-  {id:'p1',name:'Hinako',initial:'H',price:120000,portfolioUrl:'https://hinakoff14tc.carrd.co/',photo:''},
-  {id:'p2',name:'煙鏡',initial:'煙',price:20000,portfolioUrl:'https://rainy-powder-d75.notion.site/mirrorsmoke?source=copy_link',photo:''},
-];
+// 正式名單只能由 Google Sheets 載入。讀取失敗時停止預約，
+// 絕不顯示或寫回假執事／假攝影師。
+let BUTLERS = [];
+let PHOTOGRAPHERS = [];
 
 const SERVICES = [
   {id:'afternoon',name:'宅邸午茶',desc:'純享用餐點，不受任何執事打擾（現場可追加預約）',price:0,dur:30,canDesig:false},
@@ -266,45 +258,67 @@ let _isSubmitting = false; // 防止重複送出
 // ═══════════════════════════════════════════════
 const API_URL = 'https://script.google.com/macros/s/AKfycbwOrMIcW91ETRqsGN_dA_kTmHKcf1P-RDgxbIAIXDptFTeNVU0qxj1cvv6iiyIJYxPR/exec';
 
-async function apiGet(action){
+function taipeiToday(){
+  return new Intl.DateTimeFormat('en-CA',{
+    timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'
+  }).format(new Date());
+}
+
+async function requestJson(url, options={}, timeoutMs=20000){
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),timeoutMs);
   try{
-    const res = await fetch(`${API_URL}?action=${action}`);
-    return await res.json();
-  }catch(e){ console.error('apiGet error:', action, e); return null; }
+    const res=await fetch(url,{...options,signal:controller.signal,cache:'no-store'});
+    const text=await res.text();
+    let payload;
+    try{ payload=JSON.parse(text); }
+    catch(e){ throw new Error('伺服器回傳的資料格式不正確'); }
+    if(!res.ok || payload?.ok===false) throw new Error(payload?.error||`連線失敗（${res.status}）`);
+    return payload;
+  }catch(e){
+    if(e?.name==='AbortError') throw new Error('資料讀取逾時，請重新整理後再試');
+    throw e;
+  }finally{
+    clearTimeout(timer);
+  }
+}
+
+async function apiGet(action){
+  return requestJson(`${API_URL}?action=${encodeURIComponent(action)}`);
 }
 
 async function apiPost(action, data){
-  try{
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      body: JSON.stringify({action, data}),
-    });
-    return await res.json();
-  }catch(e){ console.error('apiPost error:', action, e); return null; }
+  return requestJson(API_URL,{
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body:JSON.stringify({action,data}),
+  });
 }
 
 async function loadData(){
   showLoading(true);
   try{
-    const [sched, res, butlers, photographers] = await Promise.all([
-      apiGet('getSchedule'),
-      apiGet('getReservations'),
-      apiGet('getButlers'),
-      apiGet('getPhotographers'),
-    ]);
-    if(sched && typeof sched==='object'){
-      // 確保日期 key 都是 YYYY-MM-DD 格式
-      schedule={};
-      Object.entries(sched).forEach(([k,v])=>{
-        const clean = k.length===10 ? k : new Date(k).toISOString().slice(0,10);
-        schedule[clean]=v;
-      });
-    }
-    if(Array.isArray(res)) reservations = dedupeReservationsLocal(res);
-    if(Array.isArray(butlers) && butlers.length>0) BUTLERS = butlers;
-    if(Array.isArray(photographers) && photographers.length>0) PHOTOGRAPHERS = photographers;
-  }catch(e){}
-  showLoading(false);
+    const payload=await apiGet('getPublicData');
+    const sched=payload?.schedule;
+    const res=payload?.reservations;
+    const butlers=payload?.butlers;
+    const photographers=payload?.photographers;
+    if(!sched || typeof sched!=='object' || Array.isArray(sched)) throw new Error('排班資料格式錯誤');
+    if(!Array.isArray(res)) throw new Error('預約資料格式錯誤');
+    if(!Array.isArray(butlers)) throw new Error('執事資料格式錯誤');
+    if(!Array.isArray(photographers)) throw new Error('攝影師資料格式錯誤');
+    const cleanSchedule={};
+    Object.entries(sched).forEach(([k,v])=>{
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(k)) throw new Error(`排班日期格式錯誤：${k}`);
+      cleanSchedule[k]=v;
+    });
+    schedule=cleanSchedule;
+    reservations=dedupeReservationsLocal(res);
+    BUTLERS=butlers;
+    PHOTOGRAPHERS=photographers;
+  }finally{
+    showLoading(false);
+  }
 }
 
 function dedupeReservationsLocal(list){
@@ -319,9 +333,6 @@ function dedupeReservationsLocal(list){
 }
 async function addReservation(reservation){
   return await apiPost('addReservation', reservation);
-}
-async function saveReservations(){
-  return await apiPost('saveReservations', dedupeReservationsLocal(reservations));
 }
 
 function showLoading(on){
@@ -343,31 +354,29 @@ function showLoading(on){
 // ═══════════════════════════════════════════════
 //  時段邏輯
 // ═══════════════════════════════════════════════
+function bookableWholeTimes(times){
+  const values=Array.isArray(times)?times:[];
+  return values.filter(t=>{
+    if(!/^(?:[01]\d|2[0-3]):00$/.test(t)) return false;
+    const hour=Number(t.slice(0,2));
+    return values.includes(`${String(hour).padStart(2,'0')}:30`) &&
+      values.includes(`${String(hour+1).padStart(2,'0')}:00`);
+  }).sort();
+}
+
 function getAvailTimes(dateStr){
   const d=schedule[dateStr];
   if(!d||!d.open) return [];
-  const times=(d.times||[]).slice().sort();
-  // 只保留整點（XX:00），排除 XX:30
-  // 再去掉最後一個整點（打烊時間，不可作為預約起始）
-  const wholeTimes=times.filter(t=>t.endsWith(':00'));
-  if(wholeTimes.length>1) return wholeTimes.slice(0,-1);
-  return [];
+  return bookableWholeTimes(d.times);
 }
 
 // 取得執事在某日可作為預約起始的時段（只顯示整點，排除最後一個整點）
 function getButlerBookableTimes(dateStr, butlerId){
   const day=schedule[dateStr];
   if(!day) return [];
-  let shifts=[];
-  if(day.butlerShifts !== undefined){
-    shifts=(day.butlerShifts[butlerId]||[]).slice().sort();
-  } else {
-    shifts=(day.times||[]).slice().sort();
-  }
-  // 同樣只保留整點，排除最後一個整點
-  const wholeTimes=shifts.filter(t=>t.endsWith(':00'));
-  if(wholeTimes.length>1) return wholeTimes.slice(0,-1);
-  return [];
+  // 缺少個別執事班表時視為無排班，絕不把整體營業時段套給所有執事。
+  if(!day.butlerShifts || typeof day.butlerShifts!=='object') return [];
+  return bookableWholeTimes(day.butlerShifts[butlerId]);
 }
 
 // 某執事在某日某時段是否可被預約（在執事可預約起始時段內）
@@ -417,9 +426,7 @@ function getPhotographerBookableTimes(dateStr, photoId){
   } else {
     return [];
   }
-  const wholeTimes=shifts.filter(t=>t.endsWith(':00'));
-  if(wholeTimes.length>1) return wholeTimes.slice(0,-1);
-  return [];
+  return bookableWholeTimes(shifts);
 }
 
 const PHOTOGRAPHER_MAX_PER_SLOT = 4; // 每個時段最多可接受的預約數
@@ -461,9 +468,11 @@ function renderPhotographer(){
         const available=isPhotographerAvailable(st.date, p.id, st.time);
         const booked=getPhotographerBookingCount(st.date, p.id, st.time);
         const remaining=PHOTOGRAPHER_MAX_PER_SLOT - booked;
-        const photoHtml=p.photo?`<img src="${escH(p.photo)}" alt="${escH(p.name)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`:'' ;
-        const initialHtml=`<div class="bcard-initial" style="${p.photo?'display:none':''}">${escH(p.initial)}</div>`;
-        const portfolioBtn=p.portfolioUrl?`<a class="bcard-profile" href="${escH(p.portfolioUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">作品集 ↗</a>`:'';
+        const photoUrl=safeHttpUrl(p.photo);
+        const portfolioUrl=safeHttpUrl(p.portfolioUrl);
+        const photoHtml=photoUrl?`<img src="${escH(photoUrl)}" alt="${escH(p.name)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`:'' ;
+        const initialHtml=`<div class="bcard-initial" style="${photoUrl?'display:none':''}">${escH(p.initial)}</div>`;
+        const portfolioBtn=portfolioUrl?`<a class="bcard-profile" href="${escH(portfolioUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">作品集 ↗</a>`:'';
         const statusLabel=available?`剩 ${remaining} 名`:'已滿';
         const statusCls=available?'av':'bk';
         return `<div class="bcard${st.photographer===p.id?' sel':''}${!available?' bkd':''}" onclick="${available?`selectPhotographer('${p.id}')`:''}" >
@@ -559,7 +568,7 @@ function formatDate(dateStr){
 }
 
 function renderDatetime(){
-  const today=new Date().toISOString().split('T')[0];
+  const today=taipeiToday();
   const openDates=Object.keys(schedule)
     .filter(d=>schedule[d]?.open && d>=today)
     .sort();
@@ -612,13 +621,12 @@ function renderService(){
   const hasPhoto=st.services.includes('photo');
   const hasCall=st.services.includes('call30');
 
-  // 檢查當天是否有攝影師排班（任一時段有攝影師就算）
+  // 必須在客人已選的「這個時段」確實有可預約攝影師。
   const daySchedule=schedule[st.date];
-  const hasPhotographerToday = daySchedule?.photographerShifts &&
-    Object.values(daySchedule.photographerShifts).some(shifts=>Array.isArray(shifts)&&shifts.length>0);
+  const hasPhotographerAtTime = PHOTOGRAPHERS.some(p=>isPhotographerAvailable(st.date,p.id,st.time));
 
-  // 衷心之影可用條件：有勾選優雅呼喚 且 當天有攝影師排班
-  const photoEnabled = hasCall && hasPhotographerToday;
+  // 衷心之影可用條件：有勾選優雅呼喚 且 所選時段有攝影師可預約
+  const photoEnabled = hasCall && hasPhotographerAtTime;
 
   setMain(`
     <div class="stit">預約服務</div>
@@ -633,7 +641,7 @@ function renderService(){
 
       const disabledNote = isPhoto && !hasCall
         ? `<div style="font-size:10.5px;color:var(--tm);margin-top:3px;">需先選擇「優雅呼喚」</div>`
-        : isPhoto && !hasPhotographerToday
+        : isPhoto && !hasPhotographerAtTime
           ? `<div style="font-size:10.5px;color:var(--tm);margin-top:3px;">此時段無攝影師排班</div>`
           : '';
 
@@ -671,15 +679,6 @@ function renderService(){
 // ── Step 4: 執事 ──
 function renderButler(){
   const daySchedule=schedule[st.date];
-  // 取得有排班的執事清單
-  let onDutyButlers;
-  if(daySchedule?.butlerShifts){
-    const shifts=daySchedule.butlerShifts;
-    onDutyButlers=BUTLERS.filter(b=>(shifts[b.id]||[]).length>0);
-  } else {
-    const onDutyIds=daySchedule?.butlers||BUTLERS.map(b=>b.id);
-    onDutyButlers=BUTLERS.filter(b=>onDutyIds.includes(b.id));
-  }
   const canDesig=st.services.some(sid=>SERVICES.find(s=>s.id===sid)?.canDesig);
   const total=calcTotal();
 
@@ -701,12 +700,14 @@ function renderButler(){
           const timeStatus=getButlerTimesStatus(st.date, b.id);
           const slotStatus=timeStatus.find(ts=>ts.time===st.time);
           const available = slotStatus ? !slotStatus.blocked : false;
-          const photoHtml = b.photo
-            ? `<img src="${escH(b.photo)}" alt="${escH(b.name)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+          const photoUrl=safeHttpUrl(b.photo);
+          const profileUrl=safeHttpUrl(b.profileUrl);
+          const photoHtml = photoUrl
+            ? `<img src="${escH(photoUrl)}" alt="${escH(b.name)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
             : '';
-          const initialHtml = `<div class="bcard-initial" style="${b.photo?'display:none':''}">${escH(b.initial||b.name.slice(0,1))}</div>`;
-          const profileBtn = b.profileUrl
-            ? `<a class="bcard-profile" href="${escH(b.profileUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">個人頁面 ↗</a>`
+          const initialHtml = `<div class="bcard-initial" style="${photoUrl?'display:none':''}">${escH(b.initial||b.name.slice(0,1))}</div>`;
+          const profileBtn = profileUrl
+            ? `<a class="bcard-profile" href="${escH(profileUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">個人頁面 ↗</a>`
             : '';
           const statusLabel = available ? '可指名' : '已滿';
           const statusCls = available ? 'av' : 'bk';
@@ -828,16 +829,16 @@ function renderConfirm(){
   setMain(`
     <div class="stit">確認預約內容</div>
     <div class="sbox">
-      <div class="smr"><span class="sk">預約日期</span><span class="sv">${formatDate(st.date)}${schedule[st.date]?.label?' '+schedule[st.date].label:''}</span></div>
-      <div class="smr"><span class="sk">預約時段</span><span class="sv">${st.time}</span></div>
-      <div class="smr"><span class="sk">預約服務</span><span class="sv">${svcs}</span></div>
-      <div class="smr"><span class="sk">指名執事</span><span class="sv">${butler}</span></div>
+      <div class="smr"><span class="sk">預約日期</span><span class="sv">${escH(formatDate(st.date))}${schedule[st.date]?.label?' '+escH(schedule[st.date].label):''}</span></div>
+      <div class="smr"><span class="sk">預約時段</span><span class="sv">${escH(st.time)}</span></div>
+      <div class="smr"><span class="sk">預約服務</span><span class="sv">${escH(svcs)}</span></div>
+      <div class="smr"><span class="sk">指名執事</span><span class="sv">${escH(butler)}</span></div>
       ${photoName?`<div class="smr"><span class="sk">攝影師</span><span class="sv">${escH(photoName)}</span></div>`:''}
-      <div class="smr"><span class="sk">RP 設定</span><span class="sv">${rpLbl}</span></div>
-      <div class="smr"><span class="sk">稱謂</span><span class="sv">${titleLbl}</span></div>
-      <div class="smr"><span class="sk">角色名</span><span class="sv">${st.gameName}</span></div>
-      <div class="smr"><span class="sk">伺服器</span><span class="sv">${st.server}</span></div>
-      <div class="smr"><span class="sk">聯絡方式</span><span class="sv">${st.contact}</span></div>
+      <div class="smr"><span class="sk">RP 設定</span><span class="sv">${escH(rpLbl)}</span></div>
+      <div class="smr"><span class="sk">稱謂</span><span class="sv">${escH(titleLbl)}</span></div>
+      <div class="smr"><span class="sk">角色名</span><span class="sv">${escH(st.gameName)}</span></div>
+      <div class="smr"><span class="sk">伺服器</span><span class="sv">${escH(st.server)}</span></div>
+      <div class="smr"><span class="sk">聯絡方式</span><span class="sv">${escH(st.contact)}</span></div>
       ${st.rpNote?`<div class="smr"><span class="sk">角色備註</span><span class="sv">${escH(st.rpNote)}</span></div>`:''}
       ${st.notes?`<div class="smr"><span class="sk">其他備註</span><span class="sv">${escH(st.notes)}</span></div>`:''}
       <div class="divl"></div>
@@ -920,8 +921,18 @@ function toggleAgree(){ st.agreed=!st.agreed; render(); }
 function next(){ st.step++; render(); }
 function prev(){ st.step--; render(); }
 function jumpToStep(i){ if(i<st.step){ st.step=i; render(); } }
-function selectDate(v){ st.date=v; st.time=''; render(); }
-function selectTime(t){ st.time=t; render(); }
+function selectDate(v){
+  st.date=v; st.time=''; st.butler=null; st.designated=false; st.photographer=null;
+  if(st.services.includes('photo')) st.services=st.services.filter(s=>s!=='photo');
+  render();
+}
+function selectTime(t){
+  st.time=t; st.butler=null; st.designated=false; st.photographer=null;
+  if(st.services.includes('photo')&&!PHOTOGRAPHERS.some(p=>isPhotographerAvailable(st.date,p.id,t))){
+    st.services=st.services.filter(s=>s!=='photo');
+  }
+  render();
+}
 function toggleSvc(id){
   const i=st.services.indexOf(id);
   if(i===-1) st.services.push(id); else st.services.splice(i,1);
@@ -1014,7 +1025,7 @@ async function submitRes(){
     renderSuccess(st.gameName);
   }catch(e){
     showLoading(false);
-    alert('送出預約失敗，請稍後再試。');
+    alert(e?.message||'送出預約失敗，請稍後再試。');
   }finally{
     _isSubmitting=false;
   }
@@ -1031,13 +1042,19 @@ function resetForm(){
 // ═══════════════════════════════════════════════
 function chkSvg(){ return '<svg width="11" height="11" viewBox="0 0 11 11"><polyline points="1,5 4,8 10,2" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>'; }
 function escH(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function safeHttpUrl(s){ const v=String(s||'').trim(); return /^https?:\/\//i.test(v)?v:''; }
 
 // ═══════════════════════════════════════════════
 //  初始化
 // ═══════════════════════════════════════════════
 (async ()=>{
-  await loadData();
-  render();
+  try{
+    await loadData();
+    render();
+  }catch(e){
+    document.getElementById('pbr').innerHTML='';
+    setMain(`<div class="nodate" style="color:#F09595;">⚠ ${escH(e?.message||'資料載入失敗')}<br><span style="font-size:11px;color:var(--tm);">請重新整理頁面後再試；資料不會被假名單取代。</span></div>`);
+  }
 })();
 </script>
 </body>
